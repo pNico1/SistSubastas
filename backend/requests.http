@@ -1,0 +1,73 @@
+### Circuito completo de pujas. Usar con la extension REST Client de VS Code
+### o IntelliJ HTTP Client. Ejecutar en orden.
+
+@host = http://localhost:8080
+
+### 1) Login (Juan, categoria oro)
+# @name login
+POST {{host}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "juan@email.com",
+  "password": "Password123!"
+}
+
+### Guardar el token devuelto
+@token = {{login.response.body.accessToken}}
+
+### 2) Listar subastas abiertas
+GET {{host}}/api/subastas?estado=abierta
+Authorization: Bearer {{token}}
+
+### 3) Items de la subasta 50 (plata, ARS)
+GET {{host}}/api/subastas/50/items
+Authorization: Bearer {{token}}
+
+### 4) Oferta actual del item 1 (Reloj, base 1000, Maria pujo 1500)
+GET {{host}}/api/subastas/50/items/1/oferta-actual
+Authorization: Bearer {{token}}
+
+### 5) Unirse a la subasta 50
+POST {{host}}/api/clientes/me/unirse
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "subastaId": 50 }
+
+### 6) Pujar 1600 (valida: min = 1500 + 1% de 1000 = 1510, max = 1500 + 20% = 1700)
+POST {{host}}/api/subastas/50/items/1/pujas
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "importe": 1600 }
+
+### 6b) Puja invalida (muy baja) -> 409 PUJA_TOO_LOW
+POST {{host}}/api/subastas/50/items/1/pujas
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "importe": 1505 }
+
+### 6c) Puja invalida (supera el 20%) -> 409 PUJA_TOO_HIGH
+POST {{host}}/api/subastas/50/items/1/pujas
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "importe": 1800 }
+
+### 7) Mis pujas
+GET {{host}}/api/clientes/me/pujas
+Authorization: Bearer {{token}}
+
+### 8) Mi perfil
+GET {{host}}/api/clientes/me
+Authorization: Bearer {{token}}
+
+### 9) Mis medios de pago
+GET {{host}}/api/clientes/me/metodos-pago
+Authorization: Bearer {{token}}
+
+### 10) Notificaciones
+GET {{host}}/api/clientes/me/notifications
+Authorization: Bearer {{token}}
