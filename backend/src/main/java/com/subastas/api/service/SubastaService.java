@@ -2,6 +2,7 @@ package com.subastas.api.service;
 
 import com.subastas.api.common.ApiException;
 import com.subastas.api.common.ErrorCodes;
+import com.subastas.api.common.dto.PageResponse;
 import com.subastas.api.domain.*;
 import com.subastas.api.dto.*;
 import com.subastas.api.repository.*;
