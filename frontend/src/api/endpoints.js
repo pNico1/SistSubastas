@@ -34,6 +34,12 @@ export const subastasApi = {
     client.post(`/api/subastas/${id}/items/${itemId}/pujas`, { importe }).then((r) => r.data),
 };
 
+// ---- PAISES ----
+export const paisesApi = {
+  listar: (nombre) =>
+    client.get('/api/paises', { params: nombre ? { nombre } : {} }).then((r) => r.data),
+};
+
 // ---- CLIENTE (me) ----
 export const clienteApi = {
   perfil: () => client.get('/api/clientes/me').then((r) => r.data),

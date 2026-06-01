@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, TouchableOpacity } from 'react-native';
 import TextField from '../components/TextField';
 import Button from '../components/Button';
 import { useAuth } from '../context/AuthContext';
 import { colors, spacing } from '../theme';
 
-export default function LoginScreen() {
+export default function LoginScreen({ navigation }) {
   const { login } = useAuth();
   const [email, setEmail] = useState('juan@email.com'); // prellenado para demo
   const [password, setPassword] = useState('Password123!');
@@ -68,6 +68,12 @@ export default function LoginScreen() {
           {serverError ? <Text style={styles.serverError}>{serverError}</Text> : null}
 
           <Button title="Ingresar" onPress={onSubmit} loading={loading} />
+
+          <TouchableOpacity onPress={() => navigation.navigate('Register')} style={styles.registerLink}>
+            <Text style={styles.registerText}>
+              ¿No tenes cuenta? <Text style={styles.registerStrong}>Crear cuenta</Text>
+            </Text>
+          </TouchableOpacity>
         </View>
 
         <Text style={styles.hint}>
@@ -85,5 +91,8 @@ const styles = StyleSheet.create({
   subtitle: { color: colors.textMuted, textAlign: 'center', marginBottom: spacing.lg },
   form: { backgroundColor: colors.surface, padding: spacing.lg, borderRadius: 16 },
   serverError: { color: colors.danger, marginBottom: spacing.md, textAlign: 'center' },
+  registerLink: { marginTop: spacing.md, alignItems: 'center' },
+  registerText: { color: colors.textMuted },
+  registerStrong: { color: colors.primary, fontWeight: '700' },
   hint: { color: colors.textMuted, textAlign: 'center', marginTop: spacing.lg, fontSize: 12 },
 });

@@ -7,6 +7,8 @@ import { StatusBar } from 'expo-status-bar';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
 import SplashScreen from './src/screens/SplashScreen';
 import LoginScreen from './src/screens/LoginScreen';
+import RegisterScreen from './src/screens/RegisterScreen';
+import RegisterCompleteScreen from './src/screens/RegisterCompleteScreen';
 import SubastasListScreen from './src/screens/SubastasListScreen';
 import SubastaDetailScreen from './src/screens/SubastaDetailScreen';
 import ItemDetailScreen from './src/screens/ItemDetailScreen';
@@ -38,7 +40,19 @@ function RootNavigator() {
     <NavigationContainer>
       <Stack.Navigator screenOptions={navHeader}>
         {!user ? (
-          <Stack.Screen name="Login" component={LoginScreen} options={{ headerShown: false }} />
+          <>
+            <Stack.Screen name="Login" component={LoginScreen} options={{ headerShown: false }} />
+            <Stack.Screen
+              name="Register"
+              component={RegisterScreen}
+              options={{ title: 'Crear cuenta' }}
+            />
+            <Stack.Screen
+              name="RegisterComplete"
+              component={RegisterCompleteScreen}
+              options={{ title: 'Activar cuenta' }}
+            />
+          </>
         ) : (
           <>
             <Stack.Screen
