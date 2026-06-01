@@ -1,0 +1,51 @@
+# ===== Dependencias (se reinstalan, NO se versionan) =====
+node_modules/
+.pnp/
+.pnp.js
+
+# ===== Backend Java / Maven =====
+target/
+*.class
+*.jar
+*.war
+!.mvn/wrapper/maven-wrapper.jar
+.mvn/timing/
+
+# ===== Expo / React Native =====
+.expo/
+.expo-shared/
+dist/
+web-build/
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.orig.*
+
+# ===== Logs =====
+*.log
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+# ===== Variables de entorno / secretos =====
+.env
+.env.*
+!.env.example
+
+# ===== IDE / editores =====
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+.classpath
+.project
+.settings/
+
+# ===== Sistema operativo =====
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
