@@ -12,6 +12,7 @@ import RegisterCompleteScreen from './src/screens/RegisterCompleteScreen';
 import SubastasListScreen from './src/screens/SubastasListScreen';
 import SubastaDetailScreen from './src/screens/SubastaDetailScreen';
 import ItemDetailScreen from './src/screens/ItemDetailScreen';
+import PerfilScreen from './src/screens/PerfilScreen';
 import { colors } from './src/theme';
 
 const Stack = createNativeStackNavigator();
@@ -58,7 +59,15 @@ function RootNavigator() {
             <Stack.Screen
               name="Subastas"
               component={SubastasListScreen}
-              options={{ title: 'Subastas abiertas', headerRight: () => <LogoutButton /> }}
+              options={({ navigation }) => ({
+                title: 'Subastas abiertas',
+                headerRight: () => <LogoutButton />,
+                headerLeft: () => (
+                  <TouchableOpacity onPress={() => navigation.navigate('Perfil')}>
+                    <Text style={{ color: '#fff', fontWeight: '600' }}>Mi cuenta</Text>
+                  </TouchableOpacity>
+                ),
+              })}
             />
             <Stack.Screen
               name="SubastaDetail"
@@ -69,6 +78,11 @@ function RootNavigator() {
               name="ItemDetail"
               component={ItemDetailScreen}
               options={{ title: 'Pujar' }}
+            />
+            <Stack.Screen
+              name="Perfil"
+              component={PerfilScreen}
+              options={{ title: 'Mi cuenta' }}
             />
           </>
         )}

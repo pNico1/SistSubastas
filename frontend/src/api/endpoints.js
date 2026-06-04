@@ -50,5 +50,9 @@ export const clienteApi = {
   misPujas: (params = {}) =>
     client.get('/api/clientes/me/pujas', { params }).then((r) => r.data),
   metodosPago: () => client.get('/api/clientes/me/metodos-pago').then((r) => r.data),
+  crearMetodoPago: (data) =>
+    client.post('/api/clientes/me/metodos-pago', data).then((r) => r.data),
+  eliminarMetodoPago: (id) =>
+    client.delete(`/api/clientes/me/metodos-pago/${id}`).then((r) => r.data),
   notificaciones: () => client.get('/api/clientes/me/notifications').then((r) => r.data),
 };
