@@ -1,0 +1,23 @@
+package com.subastas.api.dto;
+
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
+
+import java.util.List;
+
+/**
+ * Alta de un bien para subastar ("ofrecer un bien").
+ * Las fotos viajan como base64 (cada string es una imagen). Se acepta con o sin
+ * el prefijo data URI (data:image/png;base64,...). El backend las decodifica.
+ */
+public record CreateProductoRequest(
+        @NotBlank @Size(max = 500) String descripcionCatalogo,   // titulo / texto de catalogo
+        @Size(max = 300) String descripcionCompleta,             // detalle largo o link (opcional)
+        @Size(max = 200) String nombreArtista,
+        @Size(max = 50) String fechaObra,
+        @Size(max = 1000) String historia,
+        @NotNull Boolean terminosAceptados,
+        @NotEmpty List<@NotBlank String> fotos                   // base64, al menos una
+) {}

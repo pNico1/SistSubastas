@@ -1,5 +1,5 @@
 import React from 'react';
-import { TouchableOpacity, Text } from 'react-native';
+import { View, TouchableOpacity, Text } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { StatusBar } from 'expo-status-bar';
@@ -13,6 +13,7 @@ import SubastasListScreen from './src/screens/SubastasListScreen';
 import SubastaDetailScreen from './src/screens/SubastaDetailScreen';
 import ItemDetailScreen from './src/screens/ItemDetailScreen';
 import PerfilScreen from './src/screens/PerfilScreen';
+import OfrecerBienScreen from './src/screens/OfrecerBienScreen';
 import { colors } from './src/theme';
 
 const Stack = createNativeStackNavigator();
@@ -29,6 +30,21 @@ function LogoutButton() {
     <TouchableOpacity onPress={logout}>
       <Text style={{ color: '#fff', fontWeight: '600' }}>Salir</Text>
     </TouchableOpacity>
+  );
+}
+
+// Acciones del header de Subastas: ofrecer un bien + salir.
+function HeaderRightActions({ navigation }) {
+  const { logout } = useAuth();
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+      <TouchableOpacity onPress={() => navigation.navigate('OfrecerBien')} style={{ marginRight: 16 }}>
+        <Text style={{ color: '#fff', fontWeight: '600' }}>Ofrecer</Text>
+      </TouchableOpacity>
+      <TouchableOpacity onPress={logout}>
+        <Text style={{ color: '#fff', fontWeight: '600' }}>Salir</Text>
+      </TouchableOpacity>
+    </View>
   );
 }
 
@@ -61,7 +77,7 @@ function RootNavigator() {
               component={SubastasListScreen}
               options={({ navigation }) => ({
                 title: 'Subastas abiertas',
-                headerRight: () => <LogoutButton />,
+                headerRight: () => <HeaderRightActions navigation={navigation} />,
                 headerLeft: () => (
                   <TouchableOpacity onPress={() => navigation.navigate('Perfil')}>
                     <Text style={{ color: '#fff', fontWeight: '600' }}>Mi cuenta</Text>
@@ -83,6 +99,11 @@ function RootNavigator() {
               name="Perfil"
               component={PerfilScreen}
               options={{ title: 'Mi cuenta' }}
+            />
+            <Stack.Screen
+              name="OfrecerBien"
+              component={OfrecerBienScreen}
+              options={{ title: 'Ofrecer un bien' }}
             />
           </>
         )}

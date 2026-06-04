@@ -71,3 +71,51 @@ Authorization: Bearer {{token}}
 ### 10) Notificaciones
 GET {{host}}/api/clientes/me/notifications
 Authorization: Bearer {{token}}
+
+### ============================================================
+### Circuito "ofrecer un bien": el dueño carga un producto con fotos
+### ============================================================
+
+### 11) Ofrecer un bien (fotos en base64; aca van 2 PNG 1x1 de ejemplo)
+POST {{host}}/api/clientes/me/productos
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "descripcionCatalogo": "Reloj de bolsillo antiguo",
+  "descripcionCompleta": "Reloj suizo de 1920, caja de plata, funcionando.",
+  "nombreArtista": "Patek",
+  "fechaObra": "1920",
+  "historia": "Heredado de mi abuelo, con su cadena original.",
+  "terminosAceptados": true,
+  "fotos": [
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
+  ]
+}
+
+### 11b) Sin aceptar terminos -> 422 TERMS_NOT_ACCEPTED
+POST {{host}}/api/clientes/me/productos
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "descripcionCatalogo": "Cuadro sin terminos",
+  "terminosAceptados": false,
+  "fotos": ["iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="]
+}
+
+### 11c) Sin fotos -> 400 NO_PHOTOS
+POST {{host}}/api/clientes/me/productos
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "descripcionCatalogo": "Cuadro sin fotos",
+  "terminosAceptados": true,
+  "fotos": []
+}
+
+### 12) Mis productos (deberia aparecer el recien creado, estado en_revision)
+GET {{host}}/api/clientes/me/productos
+Authorization: Bearer {{token}}

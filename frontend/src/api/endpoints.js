@@ -40,6 +40,15 @@ export const paisesApi = {
     client.get('/api/paises', { params: nombre ? { nombre } : {} }).then((r) => r.data),
 };
 
+// ---- PRODUCTOS (dueño / "ofrecer un bien") ----
+export const productosApi = {
+  misProductos: () => client.get('/api/clientes/me/productos').then((r) => r.data),
+  getById: (id) => client.get(`/api/clientes/me/productos/${id}`).then((r) => r.data),
+  // data: { descripcionCatalogo, descripcionCompleta, nombreArtista, fechaObra,
+  //         historia, terminosAceptados, fotos: [base64...] }
+  crear: (data) => client.post('/api/clientes/me/productos', data).then((r) => r.data),
+};
+
 // ---- CLIENTE (me) ----
 export const clienteApi = {
   perfil: () => client.get('/api/clientes/me').then((r) => r.data),
