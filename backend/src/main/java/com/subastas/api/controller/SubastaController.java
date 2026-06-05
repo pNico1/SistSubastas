@@ -58,6 +58,13 @@ public class SubastaController {
         return subastaService.getOfertaActual(id, itemId);
     }
 
+    @GetMapping("/{id}/items/{itemId}/puja-actual")
+    public Map<String, Object> getPujaActual(@PathVariable Integer id, @PathVariable Integer itemId) {
+        OfertaActualDto oferta = subastaService.getOfertaActual(id, itemId);
+        return Map.of("precioActual",
+                oferta.ofertaActual() == null ? oferta.precioBase() : oferta.ofertaActual());
+    }
+
     @GetMapping("/{id}/items/{itemId}/pujas")
     public List<PujaDto> getPujasHistory(@PathVariable Integer id, @PathVariable Integer itemId) {
         return subastaService.getPujasHistory(id, itemId);

@@ -10,5 +10,9 @@ public record RegisterRequest(
         @NotBlank String documento,
         String domicilio,
         @NotNull Integer paisOrigenId,
-        @NotBlank @Email String email
+        @NotBlank @Email String email,
+        // Fotos del documento en base64 (opcionales: el usuario puede subirlas
+        // mas tarde con "Lo hare mas tarde").
+        String fotoDocFrente,
+        String fotoDocDorso
 ) {}

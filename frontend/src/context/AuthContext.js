@@ -20,8 +20,11 @@ export function AuthProvider({ children }) {
         if (raw) {
           const saved = JSON.parse(raw);
           setAuthToken(saved.accessToken);
-          setTokens(saved);
-          setUser(saved.usuario);
+          const usuario = await authApi.me().catch(() => saved.usuario);
+          const hydrated = { ...saved, usuario };
+          setTokens(hydrated);
+          setUser(usuario);
+          await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(hydrated));
         }
       } catch (e) {
         // ignora: arranca sin sesion
@@ -34,30 +37,44 @@ export function AuthProvider({ children }) {
   // Aplica una respuesta de tokens (login o registro completado): guarda en
   // memoria + estado + AsyncStorage. Al setear el usuario, el navigator pasa
   // automaticamente del stack de auth al de la app.
-  async function applySession(data) {
+  async function applySession(data, userExtras = {}) {
     setAuthToken(data.accessToken);
     setTokens(data);
-    setUser(data.usuario);
+    setUser({ ...data.usuario, ...userExtras });
     await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(data));
     return data;
   }
 
   async function login(email, password) {
     const data = await authApi.login(email, password);
-    return applySession(data);
+    const extras = data.usuario?.estado === 'pending_verification'
+      ? { provisionalPassword: password }
+      : {};
+    return applySession(data, extras);
   }
 
-  // Etapa 1 del registro: crea la solicitud (queda pendiente de verificacion).
-  // No inicia sesion; devuelve { registrationId, status, message, token }.
+  // Etapa 1 del registro: crea la solicitud y devuelve la clave provisoria.
+  // No inicia sesion: la cuenta queda pendiente de verificacion del admin.
   async function register(form) {
     return authApi.register(form);
   }
 
-  // Etapa 2 del registro: define la clave y, si todo va bien, deja la sesion
-  // iniciada (el backend devuelve access + refresh).
-  async function completeRegistration(token, password, passwordConfirmation) {
-    const data = await authApi.completeRegistration(token, password, passwordConfirmation);
+  // Etapa final: cambia la clave provisoria por una propia cuando el admin ya aprobo la cuenta.
+  async function completeRegistration(password, passwordConfirmation) {
+    const data = await authApi.completeRegistration(password, passwordConfirmation);
     return applySession(data);
+  }
+
+  async function refreshUser() {
+    const usuario = await authApi.me();
+    setUser((current) => ({ ...usuario, provisionalPassword: current?.provisionalPassword }));
+    setTokens((current) => {
+      if (!current) return current;
+      const next = { ...current, usuario };
+      AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(next)).catch(() => {});
+      return next;
+    });
+    return usuario;
   }
 
   async function logout() {
@@ -74,7 +91,7 @@ export function AuthProvider({ children }) {
 
   return (
     <AuthContext.Provider
-      value={{ user, tokens, booting, login, logout, register, completeRegistration }}
+      value={{ user, tokens, booting, login, logout, register, completeRegistration, refreshUser }}
     >
       {children}
     </AuthContext.Provider>

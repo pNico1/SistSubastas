@@ -2,12 +2,15 @@ import React from 'react';
 import { View, TouchableOpacity, Text } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 
 import { AuthProvider, useAuth } from './src/context/AuthContext';
 import SplashScreen from './src/screens/SplashScreen';
 import LoginScreen from './src/screens/LoginScreen';
 import RegisterScreen from './src/screens/RegisterScreen';
+import VerifyEmailScreen from './src/screens/VerifyEmailScreen';
+import RegisterSuccessScreen from './src/screens/RegisterSuccessScreen';
 import RegisterCompleteScreen from './src/screens/RegisterCompleteScreen';
 import SubastasListScreen from './src/screens/SubastasListScreen';
 import SubastaDetailScreen from './src/screens/SubastaDetailScreen';
@@ -52,6 +55,8 @@ function RootNavigator() {
   const { user, booting } = useAuth();
 
   if (booting) return <SplashScreen />;
+  const pendingVerification = user?.estado === 'pending_verification';
+  const needsPassword = user?.estado === 'registration_incomplete' || user?.estado === 'approved';
 
   return (
     <NavigationContainer>
@@ -62,14 +67,31 @@ function RootNavigator() {
             <Stack.Screen
               name="Register"
               component={RegisterScreen}
-              options={{ title: 'Crear cuenta' }}
+              options={{ headerShown: false }}
             />
             <Stack.Screen
-              name="RegisterComplete"
-              component={RegisterCompleteScreen}
-              options={{ title: 'Activar cuenta' }}
+              name="VerifyEmail"
+              component={VerifyEmailScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="RegisterSuccess"
+              component={RegisterSuccessScreen}
+              options={{ headerShown: false }}
             />
           </>
+        ) : pendingVerification ? (
+          <Stack.Screen
+            name="RegisterSuccess"
+            component={RegisterSuccessScreen}
+            options={{ headerShown: false }}
+          />
+        ) : needsPassword ? (
+          <Stack.Screen
+            name="RegisterComplete"
+            component={RegisterCompleteScreen}
+            options={{ headerShown: false }}
+          />
         ) : (
           <>
             <Stack.Screen
@@ -114,9 +136,11 @@ function RootNavigator() {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <StatusBar style="light" />
-      <RootNavigator />
-    </AuthProvider>
+    <SafeAreaProvider>
+      <AuthProvider>
+        <StatusBar style="light" />
+        <RootNavigator />
+      </AuthProvider>
+    </SafeAreaProvider>
   );
 }

@@ -6,8 +6,14 @@ export const authApi = {
     client.post('/api/auth/login', { email, password }).then((r) => r.data),
   register: (data) =>
     client.post('/api/auth/register', data).then((r) => r.data),
-  completeRegistration: (token, password, passwordConfirmation) =>
-    client.post('/api/auth/register-complete', { token, password, passwordConfirmation }).then((r) => r.data),
+  verifyEmail: (email, codigo) =>
+    client.post('/api/auth/verify-email', { email, codigo }).then((r) => r.data),
+  resendCode: (email) =>
+    client.post('/api/auth/resend-code', { email }).then((r) => r.data),
+  completeRegistration: (password, passwordConfirmation) =>
+    client.post('/api/auth/register-complete', { password, passwordConfirmation }).then((r) => r.data),
+  me: () =>
+    client.get('/api/auth/me').then((r) => r.data),
   refresh: (refreshToken) =>
     client.post('/api/auth/refresh', { refreshToken }).then((r) => r.data),
   logout: (refreshToken) =>
@@ -28,6 +34,8 @@ export const subastasApi = {
     client.get(`/api/subastas/${id}/items`).then((r) => r.data),
   getOfertaActual: (id, itemId) =>
     client.get(`/api/subastas/${id}/items/${itemId}/oferta-actual`).then((r) => r.data),
+  getPujaActual: (id, itemId) =>
+    client.get(`/api/subastas/${id}/items/${itemId}/puja-actual`).then((r) => r.data),
   getHistorialPujas: (id, itemId) =>
     client.get(`/api/subastas/${id}/items/${itemId}/pujas`).then((r) => r.data),
   pujar: (id, itemId, importe) =>
@@ -52,7 +60,7 @@ export const productosApi = {
 // ---- CLIENTE (me) ----
 export const clienteApi = {
   perfil: () => client.get('/api/clientes/me').then((r) => r.data),
-  misSubastas: () => client.get('/api/clientes/me/subasta').then((r) => r.data),
+  misSubastas: () => client.get('/api/clientes/me/subastas').then((r) => r.data),
   unirse: (subastaId) =>
     client.post('/api/clientes/me/unirse', { subastaId }).then((r) => r.data),
   salir: () => client.delete('/api/clientes/me/salir').then((r) => r.data),
@@ -64,4 +72,45 @@ export const clienteApi = {
   eliminarMetodoPago: (id) =>
     client.delete(`/api/clientes/me/metodos-pago/${id}`).then((r) => r.data),
   notificaciones: () => client.get('/api/clientes/me/notifications').then((r) => r.data),
+};
+
+// ---- ADMIN (segun contrato del PDF) ----
+export const adminApi = {
+  verificarCliente: (id, data = {}) => client.put(`/api/admin/clientes/${id}/verificar`, data).then((r) => r.data),
+
+  crearSubasta: (data) => client.post('/api/admin/subastas', data).then((r) => r.data),
+  asistentesSubasta: (id) => client.get(`/api/admin/subastas/${id}/asistentes`).then((r) => r.data),
+  cerrarSubasta: (id) => client.post(`/api/admin/subastas/${id}/cerrar`).then((r) => r.data),
+
+  crearCatalogo: (data) => client.post('/api/admin/catalogos', data).then((r) => r.data),
+  getCatalogo: (id) => client.get(`/api/admin/catalogos/${id}`).then((r) => r.data),
+  itemsCatalogo: (id) => client.get(`/api/admin/catalogos/${id}/items`).then((r) => r.data),
+  agregarProductoCatalogo: (id, productId, data = {}) =>
+    client.post(`/api/admin/catalogos/${id}/producto/${productId}`, data).then((r) => r.data),
+  quitarProductoCatalogo: (catalogoId, productId) =>
+    client.delete(`/api/admin/catalogos/${catalogoId}/producto/${productId}`).then((r) => r.data),
+  actualizarCatalogo: (id, data) => client.put(`/api/admin/catalogos/${id}`, data).then((r) => r.data),
+  eliminarCatalogo: (id) => client.delete(`/api/admin/catalogos/${id}`).then((r) => r.data),
+
+  crearProducto: (data) => client.post('/api/admin/productos', data).then((r) => r.data),
+  productos: (params = {}) => client.get('/api/admin/productos', { params }).then((r) => r.data),
+  actualizarProducto: (id, data) => client.put(`/api/admin/productos/${id}`, data).then((r) => r.data),
+  eliminarProducto: (id) => client.delete(`/api/admin/productos/${id}`).then((r) => r.data),
+  agregarFotoProducto: (id, data) => client.post(`/api/admin/productos/${id}/fotos`, data).then((r) => r.data),
+  asignarSeguroProducto: (id, nroPoliza) =>
+    client.put(`/api/admin/productos/${id}/seguro`, { nroPoliza }).then((r) => r.data),
+
+  actualizarDuenio: (id, data) => client.put(`/api/admin/duenios/${id}`, data).then((r) => r.data),
+
+  seguros: () => client.get('/api/admin/seguros').then((r) => r.data),
+  getSeguro: (nroPoliza) => client.get(`/api/admin/seguros/${nroPoliza}`).then((r) => r.data),
+  crearSeguro: (data) => client.post('/api/admin/seguros', data).then((r) => r.data),
+  actualizarSeguro: (nroPoliza, data) => client.put(`/api/admin/seguros/${nroPoliza}`, data).then((r) => r.data),
+
+  generarFacturas: (subastaId) => client.post(`/api/admin/facturas/generar/${subastaId}`).then((r) => r.data),
+
+  crearRevision: (data) => client.post('/api/admin/revisiones', data).then((r) => r.data),
+  revisiones: (params = {}) => client.get('/api/admin/revisiones', { params }).then((r) => r.data),
+  aprobarRevision: (id, data = {}) => client.put(`/api/admin/revisiones/${id}/aprobar`, data).then((r) => r.data),
+  rechazarRevision: (id, data = {}) => client.put(`/api/admin/revisiones/${id}/rechazar`, data).then((r) => r.data),
 };

@@ -24,6 +24,8 @@ public final class ErrorCodes {
     public static final String ALREADY_COMPLETED = "ALREADY_COMPLETED";
     public static final String WEAK_PASSWORD = "WEAK_PASSWORD";
     public static final String PASSWORD_MISMATCH = "PASSWORD_MISMATCH";
+    public static final String CODE_INVALID = "CODE_INVALID";
+    public static final String CODE_EXPIRED = "CODE_EXPIRED";
     public static final String INVALID_CREDENTIALS = "INVALID_CREDENTIALS";
     public static final String ACCOUNT_PENDING_VERIFICATION = "ACCOUNT_PENDING_VERIFICATION";
     public static final String ACCOUNT_REGISTRATION_INCOMPLETE = "ACCOUNT_REGISTRATION_INCOMPLETE";

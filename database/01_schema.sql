@@ -66,6 +66,7 @@ CREATE TABLE usuarios (
     estadoRegistro  VARCHAR(30)  NOT NULL DEFAULT 'pending_verification'
         CHECK (estadoRegistro IN
             ('pending_verification','approved','registration_incomplete','active','suspended')),
+    emailVerificado VARCHAR(2)   NOT NULL DEFAULT 'no' CHECK (emailVerificado IN ('si','no')),
     fechaCreacion   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT pk_usuarios PRIMARY KEY (id),
     CONSTRAINT uq_usuarios_email UNIQUE (email),

@@ -1,5 +1,6 @@
 package com.subastas.api.controller;
 
+import com.subastas.api.common.dto.MessageResponse;
 import com.subastas.api.dto.*;
 import com.subastas.api.service.AuthService;
 import jakarta.validation.Valid;
@@ -13,7 +14,7 @@ import org.springframework.web.bind.annotation.*;
  * /api/auth/register con /auth/login). El front consume /api/auth/*.
  */
 @RestController
-@RequestMapping("/api/auth")
+@RequestMapping({"/api/auth", "/auth"})
 public class AuthController {
 
     private final AuthService authService;
@@ -31,6 +32,21 @@ public class AuthController {
     public ResponseEntity<AuthTokensResponse> completeRegistration(
             @Valid @RequestBody CompleteRegistrationRequest req) {
         return ResponseEntity.ok(authService.completeRegistration(req));
+    }
+
+    @GetMapping("/me")
+    public ResponseEntity<UsuarioDto> me() {
+        return ResponseEntity.ok(authService.currentUser());
+    }
+
+    @PostMapping("/verify-email")
+    public ResponseEntity<MessageResponse> verifyEmail(@Valid @RequestBody VerifyEmailRequest req) {
+        return ResponseEntity.ok(authService.verifyEmail(req));
+    }
+
+    @PostMapping("/resend-code")
+    public ResponseEntity<MessageResponse> resendCode(@Valid @RequestBody ResendCodeRequest req) {
+        return ResponseEntity.ok(authService.resendCode(req));
     }
 
     @PostMapping("/login")

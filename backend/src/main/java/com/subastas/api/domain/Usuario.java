@@ -20,5 +20,6 @@ public class Usuario {
     private String email;
     private String passwordHash;
     private String estadoRegistro;    // pending_verification / approved / registration_incomplete / active / suspended
+    private String emailVerificado;   // si / no -> el usuario confirmo el codigo enviado por mail
     private LocalDateTime fechaCreacion;
 }

@@ -23,7 +23,7 @@ public class ClienteSubastaController {
         this.pujaService = pujaService;
     }
 
-    @GetMapping("/subasta")
+    @GetMapping("/subastas")
     public List<MySubastaDto> misSubastas() {
         return pujaService.getMisSubastas();
     }

@@ -19,4 +19,13 @@ public class Persona {
     private String apellido;
     private String direccion;
     private String estado;   // activo / inactivo
+
+    // Fotos del documento (frente/dorso) cargadas en el registro. Opcionales.
+    @Lob
+    @Column(columnDefinition = "LONGBLOB")
+    private byte[] fotoDocFrente;
+
+    @Lob
+    @Column(columnDefinition = "LONGBLOB")
+    private byte[] fotoDocDorso;
 }

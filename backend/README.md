@@ -23,6 +23,26 @@ Spring Boot 3.2 + Java 17 + MySQL + JWT. Mapea el esquema del TP (Hibernate
    export JWT_SECRET=una-clave-secreta-de-al-menos-32-bytes-1234
    ```
 
+   Emails de verificacion:
+   - Sin configurar nada, el backend queda en modo dev y muestra el codigo en consola.
+   - Para enviar mails reales a tu casilla con Mailtrap:
+     ```bash
+     export MAIL_PROVIDER=mailtrap
+     export MAILTRAP_API_KEY=tu_api_key
+     export MAIL_FROM=mailtrap@demomailtrap.co
+     export MAIL_TEST_TO=tu_email_registrado_en_mailtrap
+     ```
+     Con el dominio demo de Mailtrap, `MAIL_TEST_TO` debe ser el email con el que
+     registraste la cuenta. Para otros destinatarios necesitas un dominio verificado.
+   - Para enviar mails reales con Resend:
+     ```bash
+     export MAIL_PROVIDER=resend
+     export RESEND_API_KEY=re_xxxxxxxxx
+     export MAIL_FROM=onboarding@resend.dev
+     ```
+     Para enviar a otras direcciones que no sean la de tu cuenta de Resend, verifica
+     un dominio y usa un remitente de ese dominio en `MAIL_FROM`.
+
 3. Levantar:
    ```bash
    mvn spring-boot:run
