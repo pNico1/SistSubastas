@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
+  Image,
   Platform,
   ScrollView,
   StyleSheet,
@@ -83,16 +84,16 @@ export default function LoginScreen({ navigation }) {
           <Text style={styles.brand}>BIDSTER</Text>
         </View>
 
-        <View style={styles.logoBox}>
-          <Text style={styles.logoIcon}>⚖</Text>
-        </View>
+        <Image
+  source={require('../assets/logo_subastas.png')}
+  style={styles.logoBox}
+  resizeMode="contain"
+/>
 
         <Text style={styles.title}>Bienvenido de nuevo</Text>
 
         <Text style={styles.subtitle}>
-          Por favor, inicia sesión para{'\n'}
-          acceder a tu perfil y realizar pujas{'\n'}
-          en vivo.
+          
         </Text>
 
         <View style={styles.form}>
@@ -203,40 +204,31 @@ const styles = StyleSheet.create({
   header: {
     width: '100%',
     alignItems: 'center',
-    marginBottom: 48,
+    marginBottom: 8,
   },
 
-  brand: {
-    color: palette.text,
-    fontSize: 18,
-    fontWeight: '900',
-    letterSpacing: 1,
-  },
+ brand: {
+  color: palette.primary,
+  fontSize: 18,
+  fontWeight: '900',
+  letterSpacing: 1
+},
 
-  logoBox: {
-    width: 74,
-    height: 74,
-    borderRadius: 20,
-    backgroundColor: palette.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 26,
-    shadowColor: '#2B2A51',
-    shadowOpacity: 0.06,
-    shadowRadius: 14,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 3,
-  },
+logoBox: {
+  width: 170,
+  height: 170,
+  marginBottom: 16,
+},
 
   logoIcon: {
     color: palette.primary,
-    fontSize: 34,
+    fontSize: 64,
     fontWeight: '900',
   },
 
   title: {
     color: palette.text,
-    fontSize: 27,
+    fontSize: 35,
     fontWeight: '900',
     textAlign: 'center',
     marginBottom: 12,

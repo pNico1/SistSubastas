@@ -7,8 +7,8 @@ spring:
   datasource:
     # Host/puerto de la base por variables de entorno. DB_HOST = IP del contenedor.
     url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/subastas?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=America/Argentina/Buenos_Aires
-    username: ${DB_USER:subastas}
-    password: ${DB_PASS:subastas}
+    username: root
+    password: 1234r
     driver-class-name: com.mysql.cj.jdbc.Driver
   jpa:
     hibernate:

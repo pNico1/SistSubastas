@@ -7,7 +7,7 @@
 //        (ej: http://192.168.0.15:8080 ; tu PC y el celu en la misma red Wi-Fi)
 //
 // Cambia esta constante segun tu caso.
-export const BASE_URL = 'http://192.168.0.43:8080';
+export const BASE_URL = 'http://localhost:8080';
 
 // Cada cuantos ms se refresca la oferta actual en la pantalla de puja (tiempo real por polling).
 export const POLLING_MS = 3000;

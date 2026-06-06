@@ -18,7 +18,7 @@ import ItemDetailScreen from './src/screens/ItemDetailScreen';
 import PerfilScreen from './src/screens/PerfilScreen';
 import OfrecerBienScreen from './src/screens/OfrecerBienScreen';
 import { colors } from './src/theme';
-
+import BidsterScreen from './src/screens/BidsterScreen';
 const Stack = createNativeStackNavigator();
 
 const navHeader = {
@@ -63,6 +63,7 @@ function RootNavigator() {
       <Stack.Navigator screenOptions={navHeader}>
         {!user ? (
           <>
+            <Stack.Screen name="Bidster" component={BidsterScreen} options={{ headerShown: false }} />
             <Stack.Screen name="Login" component={LoginScreen} options={{ headerShown: false }} />
             <Stack.Screen
               name="Register"
