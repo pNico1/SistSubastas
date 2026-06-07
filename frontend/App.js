@@ -17,8 +17,10 @@ import SubastaDetailScreen from './src/screens/SubastaDetailScreen';
 import ItemDetailScreen from './src/screens/ItemDetailScreen';
 import PerfilScreen from './src/screens/PerfilScreen';
 import OfrecerBienScreen from './src/screens/OfrecerBienScreen';
-import { colors } from './src/theme';
 import BidsterScreen from './src/screens/BidsterScreen';
+import { colors } from './src/theme';
+import PujasScreen from './src/screens/PujasScreen';
+
 const Stack = createNativeStackNavigator();
 
 const navHeader = {
@@ -27,16 +29,6 @@ const navHeader = {
   headerTitleStyle: { fontWeight: '700' },
 };
 
-function LogoutButton() {
-  const { logout } = useAuth();
-  return (
-    <TouchableOpacity onPress={logout}>
-      <Text style={{ color: '#fff', fontWeight: '600' }}>Salir</Text>
-    </TouchableOpacity>
-  );
-}
-
-// Acciones del header de Subastas: ofrecer un bien + salir.
 function HeaderRightActions({ navigation }) {
   const { logout } = useAuth();
   return (
@@ -55,46 +47,50 @@ function RootNavigator() {
   const { user, booting } = useAuth();
 
   if (booting) return <SplashScreen />;
+
   const pendingVerification = user?.estado === 'pending_verification';
-  const needsPassword = user?.estado === 'registration_incomplete' || user?.estado === 'approved';
+  const needsPassword =
+    user?.estado === 'registration_incomplete' || user?.estado === 'approved';
 
   return (
     <NavigationContainer>
       <Stack.Navigator screenOptions={navHeader}>
         {!user ? (
+          // ─── Unauthenticated stack ───────────────────────────────────────
           <>
-            <Stack.Screen name="Bidster" component={BidsterScreen} options={{ headerShown: false }} />
-            <Stack.Screen name="Login" component={LoginScreen} options={{ headerShown: false }} />
-            <Stack.Screen
-              name="Register"
-              component={RegisterScreen}
-              options={{ headerShown: false }}
-            />
-            <Stack.Screen
-              name="VerifyEmail"
-              component={VerifyEmailScreen}
-              options={{ headerShown: false }}
-            />
-            <Stack.Screen
-              name="RegisterSuccess"
-              component={RegisterSuccessScreen}
-              options={{ headerShown: false }}
-            />
+            <Stack.Screen name="Login"   component={LoginScreen}   options={{ headerShown: false }} />
+            <Stack.Screen name="Register" component={RegisterScreen} options={{ headerShown: false }} />
+            <Stack.Screen name="VerifyEmail" component={VerifyEmailScreen} options={{ headerShown: false }} />
+            <Stack.Screen name="RegisterSuccess" component={RegisterSuccessScreen} options={{ headerShown: false }} />
           </>
         ) : pendingVerification ? (
+          // ─── Waiting for email verification ──────────────────────────────
           <Stack.Screen
             name="RegisterSuccess"
             component={RegisterSuccessScreen}
             options={{ headerShown: false }}
           />
         ) : needsPassword ? (
+          // ─── Needs to complete registration ──────────────────────────────
           <Stack.Screen
             name="RegisterComplete"
             component={RegisterCompleteScreen}
             options={{ headerShown: false }}
           />
         ) : (
+          // ─── Authenticated stack — BidsterScreen is the home ─────────────
           <>
+            {/* 👇 Primera pantalla = home después del login */}
+            <Stack.Screen
+              name="Bidster"
+              component={BidsterScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+  name="Pujas"
+  component={PujasScreen}
+  options={{ headerShown: false }}
+/>
             <Stack.Screen
               name="Subastas"
               component={SubastasListScreen}

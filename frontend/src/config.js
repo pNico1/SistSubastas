@@ -8,6 +8,7 @@
 //
 // Cambia esta constante segun tu caso.
 export const BASE_URL = 'http://localhost:8080';
+//export const BASE_URL = 'http://10.0.2.2:8080';
 
 // Cada cuantos ms se refresca la oferta actual en la pantalla de puja (tiempo real por polling).
 export const POLLING_MS = 3000;
