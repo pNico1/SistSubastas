@@ -26,6 +26,7 @@ import PerfilScreen from './src/screens/PerfilScreen';
 import OfrecerBienScreen from './src/screens/OfrecerBienScreen';
 import { colors } from './src/theme';
 import BidsterScreen from './src/screens/BidsterScreen';
+import PujasScreen from './src/screens/PujasScreen';
 const Stack = createNativeStackNavigator();
 
 const navHeader = {
@@ -73,6 +74,7 @@ function RootNavigator() {
       <Stack.Navigator screenOptions={navHeader}>
         {!user ? (
           <>
+            {/* Home publico (browse-first): el feed es la primera pantalla sin sesion */}
             <Stack.Screen name="Bidster" component={BidsterScreen} options={{ headerShown: false }} />
             <Stack.Screen name="Login" component={LoginScreen} options={{ headerShown: false }} />
             <Stack.Screen
@@ -134,6 +136,17 @@ function RootNavigator() {
           </>
         ) : (
           <>
+            {/* Home autenticado: feed visual (BidsterScreen) */}
+            <Stack.Screen
+              name="Bidster"
+              component={BidsterScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="Pujas"
+              component={PujasScreen}
+              options={{ headerShown: false }}
+            />
             <Stack.Screen
               name="Subastas"
               component={SubastasListScreen}

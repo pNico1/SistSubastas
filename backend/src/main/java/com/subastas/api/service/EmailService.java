@@ -41,6 +41,11 @@ public class EmailService {
     }
 
     public void enviarCodigoVerificacion(String toEmail, String nombre, String codigo) {
+        // El codigo SIEMPRE se loguea en consola (util para desarrollo/demo), se mande o no el email real.
+        log.warn("==================== CODIGO DE VERIFICACION ====================");
+        log.warn(" Para: {}  ->  CODIGO: {}", toEmail, codigo);
+        log.warn("===============================================================");
+
         String html = """
                 <div style="font-family:Arial,sans-serif;max-width:480px;margin:auto">
                   <h2 style="color:#0B64ED">Bidster</h2>
@@ -52,9 +57,7 @@ public class EmailService {
                 """.formatted(nombre == null ? "" : nombre, codigo);
 
         if (isDevMode()) {
-            log.warn("==================== EMAIL (MODO DEV) ====================");
-            log.warn(" Para: {}  ->  CODIGO DE VERIFICACION: {}", toEmail, codigo);
-            log.warn("=========================================================");
+            // Modo dev: no se manda email real; el codigo ya quedo logueado arriba.
             return;
         }
 
@@ -82,11 +85,12 @@ public class EmailService {
                   <p style="color:#8B88A8">La proxima vez que abras Bidster vas a poder crear tu contrasenia personal y cargar un metodo de pago.</p>
                 </div>
                 """.formatted(nombre == null ? "" : nombre, categoriaTexto);
+        log.warn("==================== EMAIL (MODO DEV) ====================");
+        log.warn(" Para: {}  ->  CUENTA VERIFICADA. CATEGORIA: {}", toEmail, categoriaTexto);
+        log.warn("=========================================================");
 
         if (isDevMode()) {
-            log.warn("==================== EMAIL (MODO DEV) ====================");
-            log.warn(" Para: {}  ->  CUENTA VERIFICADA. CATEGORIA: {}", toEmail, categoriaTexto);
-            log.warn("=========================================================");
+            // Modo dev: no se manda email real; el codigo ya quedo logueado arriba.
             return;
         }
 

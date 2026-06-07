@@ -58,7 +58,7 @@ export default function RegisterSuccessScreen({ route, navigation }) {
       await logout();
       return;
     }
-    navigation.popToTop();
+    navigation.navigate('Bidster');
   }
 
   return (

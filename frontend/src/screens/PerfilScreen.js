@@ -4,9 +4,11 @@ import { clienteApi } from '../api/endpoints';
 import Loading from '../components/Loading';
 import ErrorView from '../components/ErrorView';
 import { colors, radius, spacing } from '../theme';
+import { useAuth } from '../context/AuthContext';
 
 // "Mi cuenta": perfil del cliente, acceso a medios de pago e historial de pujas.
 export default function PerfilScreen({ navigation }) {
+  const { logout } = useAuth();
   const [perfil, setPerfil] = useState(null);
   const [pujas, setPujas] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -88,6 +90,10 @@ export default function PerfilScreen({ navigation }) {
           </View>
         ))
       )}
+
+      <TouchableOpacity style={styles.logoutBtn} onPress={() => logout()} activeOpacity={0.85}>
+        <Text style={styles.logoutText}>Cerrar sesión</Text>
+      </TouchableOpacity>
     </ScrollView>
   );
 }
@@ -145,4 +151,12 @@ const styles = StyleSheet.create({
   itemSub: { color: colors.textMuted, fontSize: 13, marginTop: 2 },
   importe: { fontWeight: '800', color: colors.primary },
   gano: { fontSize: 18, fontWeight: '800', color: colors.accent },
+  logoutBtn: {
+    marginTop: spacing.lg,
+    backgroundColor: colors.danger,
+    borderRadius: radius.md,
+    paddingVertical: spacing.md,
+    alignItems: 'center',
+  },
+  logoutText: { color: '#fff', fontWeight: '700', fontSize: 16 },
 });

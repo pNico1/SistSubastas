@@ -1,172 +1,179 @@
-import React, { useEffect, useRef } from 'react';
+// src/screens/BidsterScreen.js
+// Feed vertical estilo "reels" de items en subastas abiertas (datos reales de la API).
+import React, { useCallback, useState } from 'react';
 import {
   View,
   Text,
-  Image,
+  FlatList,
   StyleSheet,
-  Animated,
   Dimensions,
-  StatusBar,
+  Platform,
+  ActivityIndicator,
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 
-const { width, height } = Dimensions.get('window');
+import AuctionSlide from '../components/AuctionSlide';
+import TopAppBar from '../components/TopAppBar';
+import BottomNavBar from '../components/BottomNavBar';
+import { subastasApi, clienteApi } from '../api/endpoints';
 
-const colors = {
-  primary: '#0846ed',
-  primaryContainer: '#859aff',
-  onSurfaceVariant: '#585781',
-  surfaceContainerHigh: '#e2dfff',
-  background: '#f4f3ff',
-};
+const { height: SCREEN_HEIGHT } = Dimensions.get('window');
+
+const MAX_SUBASTAS = 8;
+const MAX_ITEMS_POR_SUBASTA = 3;
+const MAX_SLIDES = 15;
+
+function formatMoney(moneda, val) {
+  if (val == null) return '—';
+  const n = Number(val);
+  const formatted = isNaN(n) ? String(val) : n.toLocaleString('es-AR');
+  return `${moneda ? moneda + ' ' : ''}${formatted}`;
+}
 
 export default function BidsterScreen({ navigation }) {
-  const scaleAnim = useRef(new Animated.Value(0.85)).current;
-  const opacityAnim = useRef(new Animated.Value(0)).current;
-  const textOpacity = useRef(new Animated.Value(0)).current;
-  const translateY = useRef(new Animated.Value(20)).current;
+  const [slides, setSlides] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
-  useEffect(() => {
-    Animated.parallel([
-      Animated.spring(scaleAnim, {
-        toValue: 1,
-        tension: 60,
-        friction: 8,
-        useNativeDriver: true,
-      }),
-      Animated.timing(opacityAnim, {
-        toValue: 1,
-        duration: 500,
-        useNativeDriver: true,
-      }),
-    ]).start();
+  const load = useCallback(async () => {
+    setError(false);
+    try {
+      const subRes = await subastasApi.listar({ estado: 'abierta', pageSize: 50 });
+      const subastas = (subRes?.data || []).slice(0, MAX_SUBASTAS);
 
-    Animated.sequence([
-      Animated.delay(300),
-      Animated.parallel([
-        Animated.timing(textOpacity, {
-          toValue: 1,
-          duration: 400,
-          useNativeDriver: true,
-        }),
-        Animated.spring(translateY, {
-          toValue: 0,
-          tension: 80,
-          friction: 10,
-          useNativeDriver: true,
-        }),
-      ]),
-    ]).start();
+      // Subastas a las que el usuario ya esta unido (para habilitar la puja directa).
+      const mis = await clienteApi.misSubastas().catch(() => []);
+      const joinedIds = new Set((mis || []).map((m) => m.subastaId));
 
-    const timer = setTimeout(() => {
-      navigation.replace('Login');
-    }, 3000);
+      // Items de cada subasta abierta.
+      const perSubasta = await Promise.all(
+        subastas.map((s) =>
+          subastasApi
+            .getItems(s.id)
+            .then((its) => ({ s, its: its || [] }))
+            .catch(() => ({ s, its: [] }))
+        )
+      );
 
-    return () => clearTimeout(timer);
+      let pares = [];
+      perSubasta.forEach(({ s, its }) => {
+        its
+          .filter((it) => it.subastado !== 'si')
+          .slice(0, MAX_ITEMS_POR_SUBASTA)
+          .forEach((it) => pares.push({ s, it }));
+      });
+      pares = pares.slice(0, MAX_SLIDES);
+
+      // Oferta actual de cada item (para mostrar el monto real).
+      const conOferta = await Promise.all(
+        pares.map(({ s, it }) =>
+          subastasApi
+            .getOfertaActual(s.id, it.itemId)
+            .then((of) => ({ s, it, of }))
+            .catch(() => ({ s, it, of: null }))
+        )
+      );
+
+      const data = conOferta.map(({ s, it, of }) => ({
+        key: `${s.id}-${it.itemId}`,
+        subastaId: s.id,
+        itemId: it.itemId,
+        title: it.producto || `Item ${it.itemId}`,
+        subtitle: `Subasta #${s.id} · ${s.categoria || ''}`.trim(),
+        currentBid: formatMoney(s.moneda, of?.ofertaActual ?? of?.precioBase ?? it.precioBase),
+        lot: `#${it.itemId}`,
+        endsIn: `${s.fecha || ''} ${s.hora || ''}`.trim() || 'pronto',
+        image: `https://picsum.photos/seed/sub${s.id}item${it.itemId}/800/1200`,
+        joined: joinedIds.has(s.id),
+      }));
+
+      setSlides(data);
+    } catch (err) {
+      setError(true);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
+  // Recarga cada vez que la pantalla toma foco (p. ej. al volver de pujar).
+  useFocusEffect(
+    useCallback(() => {
+      setLoading(true);
+      load();
+    }, [load])
+  );
+
+  const getItemLayout = (_, index) => ({
+    length: SCREEN_HEIGHT,
+    offset: SCREEN_HEIGHT * index,
+    index,
+  });
+
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={colors.background} />
+    <View style={styles.root}>
+      {loading ? (
+        <View style={styles.center}>
+          <ActivityIndicator color="#859AFF" size="large" />
+        </View>
+      ) : error ? (
+        <View style={styles.center}>
+          <Text style={styles.msgTitle}>No pudimos cargar el feed</Text>
+          <Text style={styles.msgText}>Revisá tu conexión e intentá de nuevo.</Text>
+        </View>
+      ) : slides.length === 0 ? (
+        <View style={styles.center}>
+          <Text style={styles.msgTitle}>No hay subastas abiertas</Text>
+          <Text style={styles.msgText}>Cuando haya items en vivo, van a aparecer acá.</Text>
+        </View>
+      ) : (
+        <FlatList
+          data={slides}
+          keyExtractor={(item) => item.key}
+          renderItem={({ item }) => (
+            <AuctionSlide item={item} navigation={navigation} />
+          )}
+          pagingEnabled
+          showsVerticalScrollIndicator={false}
+          snapToInterval={SCREEN_HEIGHT}
+          snapToAlignment="start"
+          decelerationRate={Platform.OS === 'ios' ? 'fast' : 0.98}
+          getItemLayout={getItemLayout}
+          removeClippedSubviews
+          bounces={false}
+          overScrollMode="never"
+        />
+      )}
 
-      <View style={styles.glowTopRight} />
-      <View style={styles.glowBottomLeft} />
+      {/* Header flotante */}
+      <TopAppBar navigation={navigation} />
 
-      <View style={styles.content}>
-
-        <Animated.View
-          style={[
-            styles.iconWrapper,
-            {
-              opacity: opacityAnim,
-              transform: [{ scale: scaleAnim }],
-            },
-          ]}
-        >
-          <View style={styles.iconShadow} />
-          <Image
-            source={require('../assets/logo_subastas.png')}
-            style={styles.logo}
-            resizeMode="contain"
-          />
-        </Animated.View>
-
-        <Animated.View
-          style={[
-            styles.brandContainer,
-            {
-              opacity: textOpacity,
-              transform: [{ translateY }],
-            },
-          ]}
-        >
-          <Text style={styles.brandName}>BIDSTER</Text>
-          <Text style={styles.brandSubtitle}>THE KINETIC GALLERY</Text>
-        </Animated.View>
-
-      </View>
+      {/* Nav inferior flotante */}
+      <BottomNavBar navigation={navigation} />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  root: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: '#0a082f',
+  },
+  center: {
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    overflow: 'hidden',
+    paddingHorizontal: 32,
   },
-  glowTopRight: {
-    position: 'absolute',
-    top: -height * 0.12,
-    right: -width * 0.15,
-    width: width * 0.6,
-    height: height * 0.45,
-    borderRadius: 9999,
-    backgroundColor: colors.surfaceContainerHigh,
-    opacity: 0.5,
+  msgTitle: {
+    color: '#FFFFFF',
+    fontSize: 20,
+    fontWeight: '800',
+    textAlign: 'center',
+    marginBottom: 8,
   },
-  glowBottomLeft: {
-    position: 'absolute',
-    bottom: -height * 0.06,
-    left: -width * 0.08,
-    width: width * 0.35,
-    height: height * 0.28,
-    borderRadius: 9999,
-    backgroundColor: colors.primaryContainer,
-    opacity: 0.12,
-  },
-  content: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  iconWrapper: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
- 
-  logo: {
-    width: 220,
-    height: 220,
-    borderRadius: 40,
-  },
-  brandContainer: {
-    marginTop: 48,
-    alignItems: 'center',
-  },
-  brandName: {
-    fontSize: 32,
-    fontWeight: '900',
-    letterSpacing: 2,
-    color: colors.primary,
-  },
-  brandSubtitle: {
-    marginTop: 6,
-    fontSize: 11,
-    fontWeight: '500',
-    letterSpacing: 4,
-    color: colors.onSurfaceVariant,
-    opacity: 0.6,
-    textTransform: 'uppercase',
+  msgText: {
+    color: 'rgba(255,255,255,0.7)',
+    fontSize: 14,
+    textAlign: 'center',
   },
 });
