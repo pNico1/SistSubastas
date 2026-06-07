@@ -39,21 +39,26 @@ public class MetodoPagoService {
 
     public MetodoPagoDto crear(CreateMetodoPagoRequest req) {
         AuthPrincipal p = CurrentUser.requireCliente();
-        if (!List.of("tarjeta", "cuenta_bancaria", "cheque").contains(req.tipo())) {
+        String tipo = normalize(req.tipo());
+        if (!List.of("tarjeta", "cuenta_bancaria", "cheque").contains(tipo)) {
             throw ApiException.badRequest(ErrorCodes.INVALID_DATA, "Tipo de medio de pago invalido");
         }
+
+        validateByType(tipo, req);
+
         MedioPago m = new MedioPago();
         m.setCliente(p.clienteId());
-        m.setTipo(req.tipo());
-        m.setMarca(req.marca());
-        m.setBanco(req.banco());
-        m.setCbu(req.cbu());
-        m.setTitular(req.titular());
-        m.setMoneda(req.moneda());
+        m.setTipo(tipo);
+        m.setMarca(resolveMarca(tipo, req));
+        m.setBanco(trim(req.banco()));
+        m.setCbu(resolveCbu(tipo, req));
+        m.setTitular(trim(req.titular()));
+        m.setMoneda(resolveMoneda(req.moneda()));
         m.setEsInternacional(Boolean.TRUE.equals(req.esInternacional()) ? "si" : "no");
         m.setMontoGarantia(req.montoGarantia());
-        if (req.numero() != null && req.numero().length() >= 4) {
-            m.setUltimos4(req.numero().substring(req.numero().length() - 4));
+        String numero = digits(req.numero());
+        if (numero.length() >= 4) {
+            m.setUltimos4(numero.substring(numero.length() - 4));
         }
         m.setEstado("pending");   // queda pendiente de verificacion por la empresa
         m.setFechaCreacion(LocalDateTime.now());
@@ -73,5 +78,96 @@ public class MetodoPagoService {
     private MetodoPagoDto toDto(MedioPago m) {
         return new MetodoPagoDto(m.getId(), m.getTipo(), m.getMarca(), m.getBanco(),
                 m.getUltimos4(), m.getCbu(), m.getTitular(), m.getMoneda(), m.getEstado());
+    }
+
+    private void validateByType(String tipo, CreateMetodoPagoRequest req) {
+        if ("tarjeta".equals(tipo)) {
+            require(req.titular(), "El titular es obligatorio");
+            String numero = digits(req.numero());
+            if (numero.length() < 12 || numero.length() > 19) {
+                throw ApiException.unprocessable(ErrorCodes.VALIDATION_ERROR, "Numero de tarjeta invalido");
+            }
+            if (!matches(req.vencimiento(), "\\d{2}/\\d{2}")) {
+                throw ApiException.unprocessable(ErrorCodes.VALIDATION_ERROR, "El vencimiento debe tener formato MM/AA");
+            }
+            String cvv = digits(req.codigoSeguridad());
+            if (cvv.length() < 3 || cvv.length() > 4) {
+                throw ApiException.unprocessable(ErrorCodes.VALIDATION_ERROR, "Codigo de seguridad invalido");
+            }
+            return;
+        }
+
+        if ("cuenta_bancaria".equals(tipo)) {
+            require(req.titular(), "El titular es obligatorio");
+            require(req.banco(), "El banco es obligatorio");
+            String cuenta = firstNonBlank(req.cbu(), req.alias(), req.numero());
+            require(cuenta, "CBU, CVU o alias es obligatorio");
+            require(req.tipoCuenta(), "El tipo de cuenta es obligatorio");
+            require(req.documento(), "DNI, CUIT o CUIL es obligatorio");
+            require(req.email(), "El email es obligatorio");
+            require(req.telefono(), "El telefono es obligatorio");
+            return;
+        }
+
+        if ("cheque".equals(tipo)) {
+            require(req.banco(), "El banco emisor es obligatorio");
+            require(req.numero(), "El numero de cheque es obligatorio");
+            require(req.sucursal(), "La sucursal es obligatoria");
+            require(req.fechaEmision(), "La fecha de emision es obligatoria");
+        }
+    }
+
+    private String resolveMarca(String tipo, CreateMetodoPagoRequest req) {
+        if (!"tarjeta".equals(tipo)) return trim(req.marca());
+        String explicit = trim(req.marca());
+        if (explicit != null && !explicit.isBlank()) return explicit;
+        String numero = digits(req.numero());
+        if (numero.startsWith("4")) return "VISA";
+        if (numero.startsWith("5") || numero.startsWith("2")) return "MASTERCARD";
+        if (numero.startsWith("34") || numero.startsWith("37")) return "AMEX";
+        return "TARJETA";
+    }
+
+    private String resolveCbu(String tipo, CreateMetodoPagoRequest req) {
+        if (!"cuenta_bancaria".equals(tipo)) return trim(req.cbu());
+        return firstNonBlank(req.cbu(), req.alias(), req.numero());
+    }
+
+    private String resolveMoneda(String moneda) {
+        String normalized = normalize(moneda);
+        String resolved = normalized == null || normalized.isBlank() ? "ARS" : normalized.toUpperCase();
+        if (!List.of("ARS", "USD").contains(resolved)) {
+            throw ApiException.unprocessable(ErrorCodes.VALIDATION_ERROR, "La moneda debe ser ARS o USD");
+        }
+        return resolved;
+    }
+
+    private void require(String value, String message) {
+        if (value == null || value.isBlank()) {
+            throw ApiException.unprocessable(ErrorCodes.VALIDATION_ERROR, message);
+        }
+    }
+
+    private boolean matches(String value, String regex) {
+        return value != null && value.trim().matches(regex);
+    }
+
+    private String firstNonBlank(String... values) {
+        for (String value : values) {
+            if (value != null && !value.isBlank()) return value.trim();
+        }
+        return null;
+    }
+
+    private String normalize(String value) {
+        return value == null ? null : value.trim().toLowerCase();
+    }
+
+    private String trim(String value) {
+        return value == null ? null : value.trim();
+    }
+
+    private String digits(String value) {
+        return value == null ? "" : value.replaceAll("\\D", "");
     }
 }

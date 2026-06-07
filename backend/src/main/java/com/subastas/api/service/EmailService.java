@@ -60,9 +60,9 @@ public class EmailService {
 
         try {
             if (isMailtrap()) {
-                enviarConMailtrap(toEmail, nombre, html);
+                enviarConMailtrap(toEmail, nombre, "Tu codigo de verificacion - Bidster", html, "email_verification");
             } else if (isResend()) {
-                enviarConResend(toEmail, html);
+                enviarConResend(toEmail, "Tu codigo de verificacion - Bidster", html);
             }
         } catch (Exception e) {
             // No rompemos el registro por un fallo de email: el codigo ya quedo guardado
@@ -71,7 +71,37 @@ public class EmailService {
         }
     }
 
-    private void enviarConResend(String toEmail, String html) {
+    public void enviarCuentaVerificada(String toEmail, String nombre, String categoria) {
+        String categoriaTexto = categoria == null || categoria.isBlank() ? "asignada" : categoria;
+        String html = """
+                <div style="font-family:Arial,sans-serif;max-width:480px;margin:auto">
+                  <h2 style="color:#0B64ED">Bidster</h2>
+                  <p>Hola %s,</p>
+                  <p>Tu identidad fue verificada correctamente.</p>
+                  <p>Tu categoria inicial es: <strong style="color:#2B2A51">%s</strong>.</p>
+                  <p style="color:#8B88A8">La proxima vez que abras Bidster vas a poder crear tu contrasenia personal y cargar un metodo de pago.</p>
+                </div>
+                """.formatted(nombre == null ? "" : nombre, categoriaTexto);
+
+        if (isDevMode()) {
+            log.warn("==================== EMAIL (MODO DEV) ====================");
+            log.warn(" Para: {}  ->  CUENTA VERIFICADA. CATEGORIA: {}", toEmail, categoriaTexto);
+            log.warn("=========================================================");
+            return;
+        }
+
+        try {
+            if (isMailtrap()) {
+                enviarConMailtrap(toEmail, nombre, "Tu cuenta fue verificada - Bidster", html, "account_verified");
+            } else if (isResend()) {
+                enviarConResend(toEmail, "Tu cuenta fue verificada - Bidster", html);
+            }
+        } catch (Exception e) {
+            log.error("No se pudo enviar el email de cuenta verificada a {}: {}", toEmail, e.getMessage());
+        }
+    }
+
+    private void enviarConResend(String toEmail, String subject, String html) {
         String recipient = recipient(toEmail);
         http.post()
                 .uri(endpoint("https://api.resend.com/emails"))
@@ -80,14 +110,14 @@ public class EmailService {
                 .body(Map.of(
                         "from", sender(),
                         "to", List.of(recipient),
-                        "subject", "Tu codigo de verificacion - Bidster",
+                        "subject", subject,
                         "html", html))
                 .retrieve()
                 .toBodilessEntity();
-        log.info("Email de verificacion enviado a {} via {}", recipient, provider);
+        log.info("Email transaccional '{}' enviado a {} via {}", subject, recipient, provider);
     }
 
-    private void enviarConMailtrap(String toEmail, String nombre, String html) {
+    private void enviarConMailtrap(String toEmail, String nombre, String subject, String html, String category) {
         String recipient = recipient(toEmail);
         http.post()
                 .uri(endpoint("https://send.api.mailtrap.io/api/send"))
@@ -96,12 +126,12 @@ public class EmailService {
                 .body(Map.of(
                         "from", Map.of("email", fromEmail, "name", fromName),
                         "to", List.of(Map.of("email", recipient, "name", nombre == null ? "" : nombre)),
-                        "subject", "Tu codigo de verificacion - Bidster",
+                        "subject", subject,
                         "html", html,
-                        "category", "email_verification"))
+                        "category", category))
                 .retrieve()
                 .toBodilessEntity();
-        log.info("Email de verificacion enviado a {} via {}", recipient, provider);
+        log.info("Email transaccional '{}' enviado a {} via {}", subject, recipient, provider);
     }
 
     private boolean hasApiKey() {

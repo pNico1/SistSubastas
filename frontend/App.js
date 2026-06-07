@@ -11,7 +11,14 @@ import LoginScreen from './src/screens/LoginScreen';
 import RegisterScreen from './src/screens/RegisterScreen';
 import VerifyEmailScreen from './src/screens/VerifyEmailScreen';
 import RegisterSuccessScreen from './src/screens/RegisterSuccessScreen';
+import AccountVerifiedScreen from './src/screens/AccountVerifiedScreen';
 import RegisterCompleteScreen from './src/screens/RegisterCompleteScreen';
+import PaymentMethodsScreen from './src/screens/PaymentMethodsScreen';
+import PaymentMethodScreen from './src/screens/PaymentMethodScreen';
+import BankAccountStep1Screen from './src/screens/BankAccountStep1Screen';
+import BankAccountStep2Screen from './src/screens/BankAccountStep2Screen';
+import CreditCardPaymentScreen from './src/screens/CreditCardPaymentScreen';
+import CheckPaymentScreen from './src/screens/CheckPaymentScreen';
 import SubastasListScreen from './src/screens/SubastasListScreen';
 import SubastaDetailScreen from './src/screens/SubastaDetailScreen';
 import ItemDetailScreen from './src/screens/ItemDetailScreen';
@@ -38,12 +45,15 @@ function LogoutButton() {
 
 // Acciones del header de Subastas: ofrecer un bien + salir.
 function HeaderRightActions({ navigation }) {
-  const { logout } = useAuth();
+  const { user, logout } = useAuth();
+  const pendingVerification = user?.estado === 'pending_verification';
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-      <TouchableOpacity onPress={() => navigation.navigate('OfrecerBien')} style={{ marginRight: 16 }}>
-        <Text style={{ color: '#fff', fontWeight: '600' }}>Ofrecer</Text>
-      </TouchableOpacity>
+      {!pendingVerification ? (
+        <TouchableOpacity onPress={() => navigation.navigate('OfrecerBien')} style={{ marginRight: 16 }}>
+          <Text style={{ color: '#fff', fontWeight: '600' }}>Ofrecer</Text>
+        </TouchableOpacity>
+      ) : null}
       <TouchableOpacity onPress={logout}>
         <Text style={{ color: '#fff', fontWeight: '600' }}>Salir</Text>
       </TouchableOpacity>
@@ -52,11 +62,11 @@ function HeaderRightActions({ navigation }) {
 }
 
 function RootNavigator() {
-  const { user, booting } = useAuth();
+  const { user, booting, paymentSetupPending } = useAuth();
 
   if (booting) return <SplashScreen />;
-  const pendingVerification = user?.estado === 'pending_verification';
   const needsPassword = user?.estado === 'registration_incomplete' || user?.estado === 'approved';
+  const needsPaymentSetup = user?.estado === 'active' && paymentSetupPending;
 
   return (
     <NavigationContainer>
@@ -81,18 +91,47 @@ function RootNavigator() {
               options={{ headerShown: false }}
             />
           </>
-        ) : pendingVerification ? (
-          <Stack.Screen
-            name="RegisterSuccess"
-            component={RegisterSuccessScreen}
-            options={{ headerShown: false }}
-          />
         ) : needsPassword ? (
-          <Stack.Screen
-            name="RegisterComplete"
-            component={RegisterCompleteScreen}
-            options={{ headerShown: false }}
-          />
+          <>
+            <Stack.Screen
+              name="AccountVerified"
+              component={AccountVerifiedScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="RegisterComplete"
+              component={RegisterCompleteScreen}
+              options={{ headerShown: false }}
+            />
+          </>
+        ) : needsPaymentSetup ? (
+          <>
+            <Stack.Screen
+              name="PaymentMethod"
+              component={PaymentMethodScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="BankAccountStep1"
+              component={BankAccountStep1Screen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="BankAccountStep2"
+              component={BankAccountStep2Screen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="CreditCardPayment"
+              component={CreditCardPaymentScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="CheckPayment"
+              component={CheckPaymentScreen}
+              options={{ headerShown: false }}
+            />
+          </>
         ) : (
           <>
             <Stack.Screen
@@ -122,6 +161,36 @@ function RootNavigator() {
               name="Perfil"
               component={PerfilScreen}
               options={{ title: 'Mi cuenta' }}
+            />
+            <Stack.Screen
+              name="PaymentMethods"
+              component={PaymentMethodsScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="PaymentMethod"
+              component={PaymentMethodScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="BankAccountStep1"
+              component={BankAccountStep1Screen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="BankAccountStep2"
+              component={BankAccountStep2Screen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="CreditCardPayment"
+              component={CreditCardPaymentScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="CheckPayment"
+              component={CheckPaymentScreen}
+              options={{ headerShown: false }}
             />
             <Stack.Screen
               name="OfrecerBien"

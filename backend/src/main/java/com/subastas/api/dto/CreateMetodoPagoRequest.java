@@ -12,7 +12,15 @@ public record CreateMetodoPagoRequest(
         String cbu,
         String titular,
         String vencimiento,
+        String codigoSeguridad,
         String moneda,              // ARS / USD
+        String alias,
+        String tipoCuenta,
+        String documento,
+        String email,
+        String telefono,
+        String sucursal,
+        String fechaEmision,
         Boolean esInternacional,
         BigDecimal montoGarantia    // para cheque certificado
 ) {}

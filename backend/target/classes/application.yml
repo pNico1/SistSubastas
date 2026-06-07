@@ -2,13 +2,17 @@ server:
   port: 8080
 
 spring:
+  config:
+    import:
+      - optional:file:.env[.properties]
+      - optional:file:backend/.env[.properties]
   application:
     name: subastas-api
   datasource:
     # Host/puerto de la base por variables de entorno. DB_HOST = IP del contenedor.
-    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/subastas?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=America/Argentina/Buenos_Aires
-    username: root
-    password: 1234r
+    url: jdbc:mysql://${DB_HOST:192.168.0.37}:${DB_PORT:3306}/subastas?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=America/Argentina/Buenos_Aires
+    username: subastas_app
+    password: 1234
     driver-class-name: com.mysql.cj.jdbc.Driver
   jpa:
     hibernate:
@@ -29,11 +33,18 @@ spring:
 # Configuracion propia de la app
 app:
   jwt:
-    secret: ${JWT_SECRET:cambia-esta-clave-super-secreta-de-al-menos-32-bytes-para-HS256}
+    secret: ${JWT_SECRET:clave-super-secreta-de-al-menos-32-bytes-para-HS256}
     access-token-minutes: 30
     refresh-token-days: 7
   cors:
     allowed-origins: "*"     # en produccion restringir al dominio del front
+  email:
+    provider: ${MAIL_PROVIDER:dev}
+    api-key: ${MAILTRAP_API_KEY:${RESEND_API_KEY:}}
+    api-url: ${MAIL_API_URL:}
+    from-email: ${MAIL_FROM:mailtrap@demomailtrap.co}
+    from-name: ${MAIL_FROM_NAME:Bidster}
+    test-to-email: ${MAIL_TEST_TO:}
 
 logging:
   level:

@@ -1,15 +1,18 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { View, Text, FlatList, TouchableOpacity, StyleSheet, RefreshControl } from 'react-native';
+import { Alert, View, Text, FlatList, TouchableOpacity, StyleSheet, RefreshControl } from 'react-native';
 import { subastasApi } from '../api/endpoints';
+import { useAuth } from '../context/AuthContext';
 import Loading from '../components/Loading';
 import ErrorView from '../components/ErrorView';
 import { colors, radius, spacing } from '../theme';
 
 export default function SubastasListScreen({ navigation }) {
+  const { user } = useAuth();
   const [subastas, setSubastas] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
+  const pendingVerification = user?.estado === 'pending_verification';
 
   const load = useCallback(async () => {
     setError(null);
@@ -28,6 +31,17 @@ export default function SubastasListScreen({ navigation }) {
 
   const onRefresh = () => { setRefreshing(true); load(); };
 
+  function openSubasta(id) {
+    if (pendingVerification) {
+      Alert.alert(
+        'Cuenta pendiente',
+        'Tu cuenta todavia esta en proceso de verificacion. Vas a poder entrar a las subastas cuando un administrador la apruebe.'
+      );
+      return;
+    }
+    navigation.navigate('SubastaDetail', { id });
+  }
+
   if (loading) return <Loading text="Cargando subastas..." />;
   if (error) return <ErrorView error={error} onRetry={() => { setLoading(true); load(); }} />;
 
@@ -38,11 +52,21 @@ export default function SubastasListScreen({ navigation }) {
       data={subastas}
       keyExtractor={(item) => String(item.id)}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+      ListHeaderComponent={
+        pendingVerification ? (
+          <View style={styles.pendingBanner}>
+            <Text style={styles.pendingTitle}>Cuenta en verificacion</Text>
+            <Text style={styles.pendingText}>
+              Podes ver las subastas disponibles, pero no entrar ni participar hasta que un administrador apruebe tu cuenta.
+            </Text>
+          </View>
+        ) : null
+      }
       ListEmptyComponent={<Text style={styles.empty}>No hay subastas abiertas en este momento.</Text>}
       renderItem={({ item }) => (
         <TouchableOpacity
           style={styles.card}
-          onPress={() => navigation.navigate('SubastaDetail', { id: item.id })}
+          onPress={() => openSubasta(item.id)}
           activeOpacity={0.85}
         >
           <View style={styles.cardHeader}>
@@ -65,6 +89,16 @@ export default function SubastasListScreen({ navigation }) {
 
 const styles = StyleSheet.create({
   list: { padding: spacing.md },
+  pendingBanner: {
+    backgroundColor: '#FEF3C7',
+    borderRadius: radius.md,
+    padding: spacing.md,
+    marginBottom: spacing.md,
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+  },
+  pendingTitle: { color: colors.warning, fontWeight: '800', marginBottom: spacing.xs },
+  pendingText: { color: colors.warning, fontWeight: '600', lineHeight: 19 },
   empty: { textAlign: 'center', color: colors.textMuted, marginTop: spacing.xl },
   card: {
     backgroundColor: colors.surface,

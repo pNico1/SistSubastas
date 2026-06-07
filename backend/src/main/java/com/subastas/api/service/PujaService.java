@@ -27,12 +27,14 @@ public class PujaService {
     private final ProductoRepository productoRepo;
     private final SubastaRepository subastaRepo;
     private final NotificacionRepository notificacionRepo;
+    private final UsuarioRepository usuarioRepo;
 
     public PujaService(SubastaService subastaService, ClienteRepository clienteRepo,
                        AsistenteRepository asistenteRepo, PujoRepository pujoRepo,
                        MedioPagoRepository medioPagoRepo, ItemCatalogoRepository itemRepo,
                        CatalogoRepository catalogoRepo, ProductoRepository productoRepo,
-                       SubastaRepository subastaRepo, NotificacionRepository notificacionRepo) {
+                       SubastaRepository subastaRepo, NotificacionRepository notificacionRepo,
+                       UsuarioRepository usuarioRepo) {
         this.subastaService = subastaService;
         this.clienteRepo = clienteRepo;
         this.asistenteRepo = asistenteRepo;
@@ -43,11 +45,13 @@ public class PujaService {
         this.productoRepo = productoRepo;
         this.subastaRepo = subastaRepo;
         this.notificacionRepo = notificacionRepo;
+        this.usuarioRepo = usuarioRepo;
     }
 
     @Transactional
     public PujaResponse crearPuja(Integer subastaId, Integer itemId, CreatePujaRequest req) {
         AuthPrincipal p = CurrentUser.requireCliente();
+        requireActiveAccount(p);
         Integer clienteId = p.clienteId();
 
         Subasta subasta = subastaService.findSubasta(subastaId);
@@ -108,6 +112,7 @@ public class PujaService {
     @Transactional
     public JoinResponse unirse(JoinRequest req) {
         AuthPrincipal p = CurrentUser.requireCliente();
+        requireActiveAccount(p);
         Integer clienteId = p.clienteId();
         Subasta subasta = subastaService.findSubasta(req.subastaId());
 
@@ -196,6 +201,20 @@ public class PujaService {
 
     private boolean matchesProducto(Integer itemId, Integer productoId) {
         return itemRepo.findById(itemId).map(i -> productoId.equals(i.getProducto())).orElse(false);
+    }
+
+    private void requireActiveAccount(AuthPrincipal principal) {
+        Usuario usuario = usuarioRepo.findById(principal.usuarioId())
+                .orElseThrow(() -> ApiException.forbidden(ErrorCodes.UNAUTHORIZED, "No autenticado"));
+        String estado = usuario.getEstadoRegistro() == null ? "" : usuario.getEstadoRegistro().trim();
+        if ("pending_verification".equals(estado)) {
+            throw ApiException.forbidden(ErrorCodes.ACCOUNT_PENDING_VERIFICATION,
+                    "Tu cuenta todavia esta pendiente de verificacion");
+        }
+        if (!"active".equals(estado)) {
+            throw ApiException.forbidden(ErrorCodes.ACCOUNT_REGISTRATION_INCOMPLETE,
+                    "Tenes que completar el registro antes de participar en subastas");
+        }
     }
 
     private PujaDto toPujaDto(Pujo pj) {

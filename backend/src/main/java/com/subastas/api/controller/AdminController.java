@@ -5,6 +5,7 @@ import com.subastas.api.common.ErrorCodes;
 import com.subastas.api.domain.*;
 import com.subastas.api.repository.*;
 import com.subastas.api.security.CurrentUser;
+import com.subastas.api.service.EmailService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -16,10 +17,13 @@ import java.time.LocalTime;
 import java.util.Base64;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ThreadLocalRandom;
 
 @RestController
 @RequestMapping("/api/admin")
 public class AdminController {
+
+    private static final List<String> CATEGORIAS_CLIENTE = List.of("comun", "especial", "plata", "oro", "platino");
 
     private final SubastaRepository subastaRepo;
     private final AsistenteRepository asistenteRepo;
@@ -34,6 +38,8 @@ public class AdminController {
     private final FacturaRepository facturaRepo;
     private final ClienteRepository clienteRepo;
     private final UsuarioRepository usuarioRepo;
+    private final PersonaRepository personaRepo;
+    private final EmailService emailService;
 
     public AdminController(SubastaRepository subastaRepo,
                            AsistenteRepository asistenteRepo,
@@ -47,7 +53,9 @@ public class AdminController {
                            RegistroDeSubastaRepository registroRepo,
                            FacturaRepository facturaRepo,
                            ClienteRepository clienteRepo,
-                           UsuarioRepository usuarioRepo) {
+                           UsuarioRepository usuarioRepo,
+                           PersonaRepository personaRepo,
+                           EmailService emailService) {
         this.subastaRepo = subastaRepo;
         this.asistenteRepo = asistenteRepo;
         this.catalogoRepo = catalogoRepo;
@@ -61,6 +69,8 @@ public class AdminController {
         this.facturaRepo = facturaRepo;
         this.clienteRepo = clienteRepo;
         this.usuarioRepo = usuarioRepo;
+        this.personaRepo = personaRepo;
+        this.emailService = emailService;
     }
 
     @PutMapping("/clientes/{id}/verificar")
@@ -69,9 +79,7 @@ public class AdminController {
         Cliente cliente = clienteRepo.findById(id)
                 .orElseThrow(() -> ApiException.notFound(ErrorCodes.CLIENTE_NOT_FOUND, "Cliente no encontrado"));
         cliente.setAdmitido("si");
-        if (body != null && body.containsKey("categoria")) {
-            cliente.setCategoria(str(body, "categoria"));
-        }
+        cliente.setCategoria(categoriaVerificacion(body));
         clienteRepo.save(cliente);
 
         usuarioRepo.findByPersona(id).ifPresent(usuario -> {
@@ -79,9 +87,16 @@ public class AdminController {
                 usuario.setEstadoRegistro("registration_incomplete");
                 usuarioRepo.save(usuario);
             }
+            String nombre = personaRepo.findById(id).map(Persona::getNombre).orElse(null);
+            emailService.enviarCuentaVerificada(usuario.getEmail(), nombre, cliente.getCategoria());
         });
 
-        return Map.of("id", id, "admitido", "si", "mensaje", "Cliente verificado");
+        return Map.of(
+                "id", id,
+                "admitido", "si",
+                "categoria", cliente.getCategoria(),
+                "mensaje", "Cliente verificado"
+        );
     }
 
     @PostMapping("/subastas")
@@ -394,6 +409,14 @@ public class AdminController {
 
     private Integer currentAdminId() {
         return CurrentUser.get().personaId();
+    }
+
+    private static String categoriaVerificacion(Map<String, Object> body) {
+        String categoria = body == null ? null : str(body, "categoria");
+        if (categoria != null && !categoria.isBlank()) {
+            return categoria;
+        }
+        return CATEGORIAS_CLIENTE.get(ThreadLocalRandom.current().nextInt(CATEGORIAS_CLIENTE.size()));
     }
 
     private static String str(Map<String, Object> body, String key) {

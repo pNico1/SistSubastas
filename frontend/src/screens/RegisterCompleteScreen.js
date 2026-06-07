@@ -27,7 +27,7 @@ const palette = {
   infoBg: '#F4F1FF',
 };
 
-export default function RegisterCompleteScreen() {
+export default function RegisterCompleteScreen({ navigation }) {
   const { completeRegistration, logout } = useAuth();
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
@@ -84,8 +84,16 @@ export default function RegisterCompleteScreen() {
     }
   }
 
+  function goBack() {
+    if (navigation?.canGoBack()) {
+      navigation.goBack();
+      return;
+    }
+    logout();
+  }
+
   return (
-    <SafeAreaView style={styles.screen} edges={['top', 'bottom']}>
+    <SafeAreaView style={styles.screen} edges={['top']}>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -96,7 +104,7 @@ export default function RegisterCompleteScreen() {
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.topBar}>
-            <TouchableOpacity onPress={logout} style={styles.backButton} hitSlop={10}>
+            <TouchableOpacity onPress={goBack} style={styles.backButton} hitSlop={10}>
               <Text style={styles.backArrow}>‹</Text>
             </TouchableOpacity>
             <Text style={styles.headerTitle}>Create Password</Text>

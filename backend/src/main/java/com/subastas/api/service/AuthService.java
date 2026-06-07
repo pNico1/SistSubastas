@@ -308,17 +308,25 @@ public class AuthService {
      * estado propio de auth en usuarios.
      */
     private Usuario syncRegistrationStatus(Usuario usuario) {
-        String estado = usuario.getEstadoRegistro();
+        String estadoOriginal = usuario.getEstadoRegistro();
+        String estado = normalize(estadoOriginal);
+        if (estadoOriginal != null && !estadoOriginal.equals(estado)) {
+            usuario.setEstadoRegistro(estado);
+            usuario = usuarioRepo.save(usuario);
+        }
         if (usuario.getPersona() == null) {
             return usuario;
         }
 
         boolean aprobadoPorAdmin = clienteRepo.findById(usuario.getPersona())
-                .map(c -> "si".equals(c.getAdmitido()))
+                .map(c -> isYes(c.getAdmitido()))
                 .orElse(false);
 
-        if (("pending_verification".equals(estado) || "approved".equals(estado))
-                && aprobadoPorAdmin) {
+        if (aprobadoPorAdmin
+                && ("pending_verification".equals(estado)
+                || "approved".equals(estado)
+                || estado == null
+                || estado.isBlank())) {
             usuario.setEstadoRegistro("registration_incomplete");
             return usuarioRepo.save(usuario);
         }
@@ -343,5 +351,13 @@ public class AuthService {
         return pwd != null && pwd.length() >= 8
                 && pwd.chars().anyMatch(Character::isLetter)
                 && pwd.chars().anyMatch(Character::isDigit);
+    }
+
+    private boolean isYes(String value) {
+        return value != null && "si".equalsIgnoreCase(value.trim());
+    }
+
+    private String normalize(String value) {
+        return value == null ? null : value.trim();
     }
 }

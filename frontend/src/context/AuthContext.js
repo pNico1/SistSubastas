@@ -6,11 +6,13 @@ import { setAuthToken } from '../api/client';
 const AuthContext = createContext(null);
 
 const STORAGE_KEY = 'subastas.auth';
+const PAYMENT_SETUP_KEY = 'subastas.paymentSetupPending';
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [tokens, setTokens] = useState(null);
   const [booting, setBooting] = useState(true);
+  const [paymentSetupPending, setPaymentSetupPending] = useState(false);
 
   // Restaurar sesion guardada al abrir la app.
   useEffect(() => {
@@ -24,6 +26,8 @@ export function AuthProvider({ children }) {
           const hydrated = { ...saved, usuario };
           setTokens(hydrated);
           setUser(usuario);
+          const paymentPending = await AsyncStorage.getItem(PAYMENT_SETUP_KEY);
+          setPaymentSetupPending(paymentPending === 'true' && usuario?.estado === 'active');
           await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(hydrated));
         }
       } catch (e) {
@@ -37,11 +41,15 @@ export function AuthProvider({ children }) {
   // Aplica una respuesta de tokens (login o registro completado): guarda en
   // memoria + estado + AsyncStorage. Al setear el usuario, el navigator pasa
   // automaticamente del stack de auth al de la app.
-  async function applySession(data, userExtras = {}) {
+  async function applySession(data, userExtras = {}, options = {}) {
     setAuthToken(data.accessToken);
     setTokens(data);
     setUser({ ...data.usuario, ...userExtras });
     await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    if (options.paymentSetupPending) {
+      setPaymentSetupPending(true);
+      await AsyncStorage.setItem(PAYMENT_SETUP_KEY, 'true');
+    }
     return data;
   }
 
@@ -62,7 +70,12 @@ export function AuthProvider({ children }) {
   // Etapa final: cambia la clave provisoria por una propia cuando el admin ya aprobo la cuenta.
   async function completeRegistration(password, passwordConfirmation) {
     const data = await authApi.completeRegistration(password, passwordConfirmation);
-    return applySession(data);
+    return applySession(data, {}, { paymentSetupPending: true });
+  }
+
+  async function finishPaymentSetup() {
+    setPaymentSetupPending(false);
+    await AsyncStorage.removeItem(PAYMENT_SETUP_KEY);
   }
 
   async function refreshUser() {
@@ -86,12 +99,25 @@ export function AuthProvider({ children }) {
     setAuthToken(null);
     setTokens(null);
     setUser(null);
+    setPaymentSetupPending(false);
     await AsyncStorage.removeItem(STORAGE_KEY);
+    await AsyncStorage.removeItem(PAYMENT_SETUP_KEY);
   }
 
   return (
     <AuthContext.Provider
-      value={{ user, tokens, booting, login, logout, register, completeRegistration, refreshUser }}
+      value={{
+        user,
+        tokens,
+        booting,
+        paymentSetupPending,
+        login,
+        logout,
+        register,
+        completeRegistration,
+        finishPaymentSetup,
+        refreshUser,
+      }}
     >
       {children}
     </AuthContext.Provider>

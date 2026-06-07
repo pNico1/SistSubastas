@@ -11,6 +11,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
 
 const palette = {
@@ -71,10 +72,11 @@ export default function LoginScreen({ navigation }) {
   }
 
   return (
-    <KeyboardAvoidingView
-      style={styles.screen}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
+    <SafeAreaView style={styles.screen} edges={['top']}>
+      <KeyboardAvoidingView
+        style={styles.keyboardAvoiding}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
       <ScrollView
         contentContainerStyle={styles.container}
         keyboardShouldPersistTaps="handled"
@@ -182,8 +184,9 @@ export default function LoginScreen({ navigation }) {
             se requiere un perfil verificado.
           </Text>
         </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
@@ -191,6 +194,10 @@ const styles = StyleSheet.create({
   screen: {
     flex: 1,
     backgroundColor: palette.background,
+  },
+
+  keyboardAvoiding: {
+    flex: 1,
   },
 
   container: {

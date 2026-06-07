@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet, Alert, ScrollView } from 'react-native';
 import { subastasApi } from '../api/endpoints';
 import { POLLING_MS } from '../config';
+import { useAuth } from '../context/AuthContext';
 import Loading from '../components/Loading';
 import ErrorView from '../components/ErrorView';
 import TextField from '../components/TextField';
@@ -9,6 +10,7 @@ import Button from '../components/Button';
 import { colors, radius, spacing } from '../theme';
 
 export default function ItemDetailScreen({ route }) {
+  const { user } = useAuth();
   const { subastaId, itemId, nombre, joined } = route.params;
   const [oferta, setOferta] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -17,8 +19,10 @@ export default function ItemDetailScreen({ route }) {
   const [importeError, setImporteError] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const importeTocado = useRef(false);
+  const pendingVerification = user?.estado === 'pending_verification';
 
   const fetchOferta = useCallback(async () => {
+    if (pendingVerification) return;
     try {
       const data = await subastasApi.getOfertaActual(subastaId, itemId);
       setOferta(data);
@@ -32,14 +36,15 @@ export default function ItemDetailScreen({ route }) {
     } finally {
       setLoading(false);
     }
-  }, [subastaId, itemId]);
+  }, [subastaId, itemId, pendingVerification]);
 
   // Polling: refresca la oferta actual cada POLLING_MS (tiempo real simplificado).
   useEffect(() => {
+    if (pendingVerification) return undefined;
     fetchOferta();
     const t = setInterval(fetchOferta, POLLING_MS);
     return () => clearInterval(t);
-  }, [fetchOferta]);
+  }, [fetchOferta, pendingVerification]);
 
   function validar(valor) {
     const n = parseFloat(valor);
@@ -68,6 +73,17 @@ export default function ItemDetailScreen({ route }) {
     } finally {
       setSubmitting(false);
     }
+  }
+
+  if (pendingVerification) {
+    return (
+      <View style={styles.blocked}>
+        <Text style={styles.blockedTitle}>Cuenta en verificacion</Text>
+        <Text style={styles.blockedText}>
+          Tu cuenta todavia esta pendiente de aprobacion. No podes entrar a items ni pujar hasta que sea verificada.
+        </Text>
+      </View>
+    );
   }
 
   if (loading) return <Loading text="Cargando item..." />;
@@ -134,6 +150,26 @@ export default function ItemDetailScreen({ route }) {
 }
 
 const styles = StyleSheet.create({
+  blocked: {
+    flex: 1,
+    backgroundColor: colors.background,
+    padding: spacing.lg,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  blockedTitle: {
+    color: colors.text,
+    fontSize: 22,
+    fontWeight: '800',
+    marginBottom: spacing.sm,
+    textAlign: 'center',
+  },
+  blockedText: {
+    color: colors.textMuted,
+    fontSize: 15,
+    lineHeight: 22,
+    textAlign: 'center',
+  },
   container: { padding: spacing.lg },
   title: { fontSize: 22, fontWeight: '800', color: colors.text, marginBottom: spacing.md },
   card: { backgroundColor: colors.surface, borderRadius: radius.lg, padding: spacing.lg, borderWidth: 1, borderColor: colors.border },

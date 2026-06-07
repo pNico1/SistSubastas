@@ -1,12 +1,14 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { View, Text, FlatList, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import { subastasApi, clienteApi } from '../api/endpoints';
+import { useAuth } from '../context/AuthContext';
 import Loading from '../components/Loading';
 import ErrorView from '../components/ErrorView';
 import Button from '../components/Button';
 import { colors, radius, spacing } from '../theme';
 
 export default function SubastaDetailScreen({ route, navigation }) {
+  const { user } = useAuth();
   const { id } = route.params;
   const [subasta, setSubasta] = useState(null);
   const [items, setItems] = useState([]);
@@ -14,8 +16,10 @@ export default function SubastaDetailScreen({ route, navigation }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [joining, setJoining] = useState(false);
+  const pendingVerification = user?.estado === 'pending_verification';
 
   const load = useCallback(async () => {
+    if (pendingVerification) return;
     setError(null);
     try {
       const [s, its, mis] = await Promise.all([
@@ -31,9 +35,11 @@ export default function SubastaDetailScreen({ route, navigation }) {
     } finally {
       setLoading(false);
     }
-  }, [id]);
+  }, [id, pendingVerification]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    if (!pendingVerification) load();
+  }, [load, pendingVerification]);
 
   async function onJoin() {
     setJoining(true);
@@ -46,6 +52,18 @@ export default function SubastaDetailScreen({ route, navigation }) {
     } finally {
       setJoining(false);
     }
+  }
+
+  if (pendingVerification) {
+    return (
+      <View style={styles.blocked}>
+        <Text style={styles.blockedTitle}>Cuenta en verificacion</Text>
+        <Text style={styles.blockedText}>
+          Tu cuenta todavia esta pendiente de aprobacion. Vas a poder entrar a subastas cuando un administrador la verifique.
+        </Text>
+        <Button title="Volver al inicio" onPress={() => navigation.navigate('Subastas')} />
+      </View>
+    );
   }
 
   if (loading) return <Loading text="Cargando subasta..." />;
@@ -102,6 +120,27 @@ export default function SubastaDetailScreen({ route, navigation }) {
 }
 
 const styles = StyleSheet.create({
+  blocked: {
+    flex: 1,
+    backgroundColor: colors.background,
+    padding: spacing.lg,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  blockedTitle: {
+    color: colors.text,
+    fontSize: 22,
+    fontWeight: '800',
+    marginBottom: spacing.sm,
+    textAlign: 'center',
+  },
+  blockedText: {
+    color: colors.textMuted,
+    fontSize: 15,
+    lineHeight: 22,
+    textAlign: 'center',
+    marginBottom: spacing.lg,
+  },
   list: { padding: spacing.md },
   header: { marginBottom: spacing.sm },
   title: { fontSize: 22, fontWeight: '800', color: colors.text },
