@@ -29,9 +29,8 @@ export default function CheckPaymentScreen({ route, navigation }) {
     if (!form.banco.trim()) next.banco = 'Ingresa el banco emisor';
     if (!form.numero.trim()) next.numero = 'Ingresa el numero de cheque';
     if (!form.sucursal.trim()) next.sucursal = 'Ingresa la sucursal';
-    if (!/^\d{2}\/\d{2}\/\d{4}$/.test(form.fechaEmision.trim())) {
-      next.fechaEmision = 'Usa formato DD/MM/AAAA';
-    }
+    const feError = validarFechaEmision(form.fechaEmision.trim());
+    if (feError) next.fechaEmision = feError;
     setErrors(next);
     return Object.keys(next).length === 0;
   }
@@ -90,6 +89,24 @@ function formatDate(value) {
   if (digits.length <= 2) return digits;
   if (digits.length <= 4) return `${digits.slice(0, 2)}/${digits.slice(2)}`;
   return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`;
+}
+
+// Valida DD/MM/AAAA: fecha real (rechaza 99/99/9999, 31/02, etc.) y no futura.
+function validarFechaEmision(value) {
+  const m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(value);
+  if (!m) return 'Usa formato DD/MM/AAAA';
+  const dia = parseInt(m[1], 10);
+  const mes = parseInt(m[2], 10);
+  const anio = parseInt(m[3], 10);
+  if (mes < 1 || mes > 12) return 'Mes invalido (01-12)';
+  const d = new Date(anio, mes - 1, dia);
+  if (d.getFullYear() !== anio || d.getMonth() !== mes - 1 || d.getDate() !== dia) {
+    return 'Fecha invalida';
+  }
+  const hoy = new Date();
+  hoy.setHours(23, 59, 59, 999);
+  if (d > hoy) return 'La fecha no puede ser futura';
+  return null;
 }
 
 function BackButton({ onPress }) {

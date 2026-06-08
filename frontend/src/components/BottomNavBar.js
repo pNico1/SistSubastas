@@ -43,9 +43,11 @@ export default function BottomNavBar({ navigation }) {
   const currentRoute =
     navigation.getState()?.routes?.[navigation.getState().index]?.name;
 
+  // Sin sesion, explorar (Bidster/Pujas) esta permitido; ofrecer y perfil piden login.
+  const GUEST_BLOCKED = ['OfrecerBien', 'Perfil'];
+
   const handlePress = (tab) => {
-    // Sin sesion, cualquier accion que no sea el feed lleva a Login.
-    if (!user && tab.key !== 'Bidster') {
+    if (!user && GUEST_BLOCKED.includes(tab.key)) {
       if (currentRoute !== 'Login') navigation.navigate('Login');
       return;
     }

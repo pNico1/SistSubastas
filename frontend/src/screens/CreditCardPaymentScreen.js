@@ -31,7 +31,8 @@ export default function CreditCardPaymentScreen({ route, navigation }) {
     const next = {};
     if (!form.titular.trim()) next.titular = 'Ingresa el titular';
     if (numeroDigits.length < 12 || numeroDigits.length > 19) next.numero = 'Numero de tarjeta invalido';
-    if (!/^\d{2}\/\d{2}$/.test(form.vencimiento.trim())) next.vencimiento = 'Usa formato MM/AA';
+    const vtoError = validarVencimiento(form.vencimiento.trim());
+    if (vtoError) next.vencimiento = vtoError;
     if (!/^\d{3,4}$/.test(form.codigoSeguridad.trim())) next.codigoSeguridad = 'CVV/CVC invalido';
     setErrors(next);
     return Object.keys(next).length === 0;
@@ -106,6 +107,18 @@ function formatExpiry(value) {
   const digits = value.replace(/\D/g, '').slice(0, 4);
   if (digits.length <= 2) return digits;
   return `${digits.slice(0, 2)}/${digits.slice(2)}`;
+}
+
+// Valida MM/AA: mes 01-12 y que la tarjeta no este vencida.
+function validarVencimiento(value) {
+  const m = /^(\d{2})\/(\d{2})$/.exec(value);
+  if (!m) return 'Usa formato MM/AA';
+  const mes = parseInt(m[1], 10);
+  const anio = 2000 + parseInt(m[2], 10);
+  if (mes < 1 || mes > 12) return 'Mes invalido (01-12)';
+  const finDeMes = new Date(anio, mes, 0, 23, 59, 59); // ultimo dia del mes de vencimiento
+  if (finDeMes < new Date()) return 'La tarjeta esta vencida';
+  return null;
 }
 
 function BackButton({ onPress }) {

@@ -1,7 +1,8 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { authApi } from '../api/endpoints';
-import { setAuthToken } from '../api/client';
+import { setAuthToken, setOnUnauthorized } from '../api/client';
+import { resetToLogin } from '../navigationRef';
 
 const AuthContext = createContext(null);
 
@@ -22,7 +23,19 @@ export function AuthProvider({ children }) {
         if (raw) {
           const saved = JSON.parse(raw);
           setAuthToken(saved.accessToken);
-          const usuario = await authApi.me().catch(() => saved.usuario);
+          let usuario;
+          try {
+            usuario = await authApi.me();
+          } catch (err) {
+            if (err?.status === 401) {
+              // Token vencido/invalido: limpiamos la sesion y arrancamos como invitado.
+              setAuthToken(null);
+              await AsyncStorage.removeItem(STORAGE_KEY);
+              await AsyncStorage.removeItem(PAYMENT_SETUP_KEY);
+              return;
+            }
+            usuario = saved.usuario; // error de red: toleramos modo offline
+          }
           const hydrated = { ...saved, usuario };
           setTokens(hydrated);
           setUser(usuario);
@@ -36,6 +49,14 @@ export function AuthProvider({ children }) {
         setBooting(false);
       }
     })();
+  }, []);
+
+  // Si una llamada autenticada devuelve 401 (token vencido), cerramos sesion y vamos a Login.
+  useEffect(() => {
+    setOnUnauthorized(() => {
+      logout().finally(() => setTimeout(resetToLogin, 0));
+    });
+    return () => setOnUnauthorized(null);
   }, []);
 
   // Aplica una respuesta de tokens (login o registro completado): guarda en

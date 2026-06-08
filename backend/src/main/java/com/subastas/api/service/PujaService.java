@@ -114,6 +114,13 @@ public class PujaService {
         AuthPrincipal p = CurrentUser.requireCliente();
         requireActiveAccount(p);
         Integer clienteId = p.clienteId();
+
+        // No se puede unir a una subasta sin un medio de pago verificado.
+        if (!medioPagoRepo.existsByClienteAndEstado(clienteId, "verified")) {
+            throw ApiException.forbidden(ErrorCodes.NO_VERIFIED_PAYMENT_METHOD,
+                    "Necesitas un medio de pago verificado para unirte a una subasta");
+        }
+
         Subasta subasta = subastaService.findSubasta(req.subastaId());
 
         if (!"abierta".equals(subasta.getEstado())) {

@@ -14,12 +14,15 @@ import * as ImagePicker from 'expo-image-picker';
 import TextField from '../components/TextField';
 import Button from '../components/Button';
 import { productosApi } from '../api/endpoints';
+import { useAuth } from '../context/AuthContext';
 import { colors, radius, spacing } from '../theme';
 
 const MAX_FOTOS = 8;
 
 // Circuito "ofrecer un bien": el dueño carga un producto con fotos para subastar.
 export default function OfrecerBienScreen({ navigation }) {
+  const { user } = useAuth();
+  const pendingVerification = user?.estado === 'pending_verification';
   const [form, setForm] = useState({
     descripcionCatalogo: '',
     descripcionCompleta: '',
@@ -115,6 +118,18 @@ export default function OfrecerBienScreen({ navigation }) {
     }
   }
 
+  if (pendingVerification) {
+    return (
+      <View style={styles.blocked}>
+        <Text style={styles.blockedTitle}>Cuenta en verificación</Text>
+        <Text style={styles.blockedText}>
+          Tu cuenta todavía está pendiente de aprobación. Vas a poder enviar un bien a revisión cuando un administrador la verifique.
+        </Text>
+        <Button title="Volver al inicio" onPress={() => navigation.navigate('Bidster')} variant="accent" />
+      </View>
+    );
+  }
+
   return (
     <KeyboardAvoidingView
       style={{ flex: 1, backgroundColor: colors.background }}
@@ -207,6 +222,9 @@ export default function OfrecerBienScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
+  blocked: { flex: 1, backgroundColor: colors.background, padding: spacing.lg, alignItems: 'center', justifyContent: 'center' },
+  blockedTitle: { color: colors.text, fontSize: 22, fontWeight: '800', marginBottom: spacing.sm, textAlign: 'center' },
+  blockedText: { color: colors.textMuted, fontSize: 15, lineHeight: 22, textAlign: 'center', marginBottom: spacing.lg },
   container: { padding: spacing.lg },
   title: { fontSize: 24, fontWeight: '800', color: colors.text },
   subtitle: { color: colors.textMuted, marginTop: spacing.xs, marginBottom: spacing.lg },

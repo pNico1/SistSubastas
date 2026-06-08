@@ -40,6 +40,7 @@ public class AdminController {
     private final UsuarioRepository usuarioRepo;
     private final PersonaRepository personaRepo;
     private final EmailService emailService;
+    private final MedioPagoRepository medioPagoRepo;
 
     public AdminController(SubastaRepository subastaRepo,
                            AsistenteRepository asistenteRepo,
@@ -55,7 +56,8 @@ public class AdminController {
                            ClienteRepository clienteRepo,
                            UsuarioRepository usuarioRepo,
                            PersonaRepository personaRepo,
-                           EmailService emailService) {
+                           EmailService emailService,
+                           MedioPagoRepository medioPagoRepo) {
         this.subastaRepo = subastaRepo;
         this.asistenteRepo = asistenteRepo;
         this.catalogoRepo = catalogoRepo;
@@ -71,6 +73,7 @@ public class AdminController {
         this.usuarioRepo = usuarioRepo;
         this.personaRepo = personaRepo;
         this.emailService = emailService;
+        this.medioPagoRepo = medioPagoRepo;
     }
 
     @PutMapping("/clientes/{id}/verificar")
@@ -96,6 +99,20 @@ public class AdminController {
                 "admitido", "si",
                 "categoria", cliente.getCategoria(),
                 "mensaje", "Cliente verificado"
+        );
+    }
+
+    // La empresa verifica un medio de pago cargado por un cliente (pending -> verified).
+    @PutMapping("/metodos-pago/{id}/verificar")
+    public Map<String, Object> verificarMetodoPago(@PathVariable Integer id) {
+        MedioPago medio = medioPagoRepo.findById(id)
+                .orElseThrow(() -> ApiException.notFound(ErrorCodes.PAYMENT_METHOD_NOT_FOUND, "Medio de pago no encontrado"));
+        medio.setEstado("verified");
+        medioPagoRepo.save(medio);
+        return Map.of(
+                "id", medio.getId(),
+                "estado", medio.getEstado(),
+                "mensaje", "Medio de pago verificado"
         );
     }
 

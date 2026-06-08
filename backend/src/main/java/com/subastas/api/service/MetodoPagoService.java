@@ -87,9 +87,7 @@ public class MetodoPagoService {
             if (numero.length() < 12 || numero.length() > 19) {
                 throw ApiException.unprocessable(ErrorCodes.VALIDATION_ERROR, "Numero de tarjeta invalido");
             }
-            if (!matches(req.vencimiento(), "\\d{2}/\\d{2}")) {
-                throw ApiException.unprocessable(ErrorCodes.VALIDATION_ERROR, "El vencimiento debe tener formato MM/AA");
-            }
+            validarVencimientoTarjeta(req.vencimiento());
             String cvv = digits(req.codigoSeguridad());
             if (cvv.length() < 3 || cvv.length() > 4) {
                 throw ApiException.unprocessable(ErrorCodes.VALIDATION_ERROR, "Codigo de seguridad invalido");
@@ -114,6 +112,7 @@ public class MetodoPagoService {
             require(req.numero(), "El numero de cheque es obligatorio");
             require(req.sucursal(), "La sucursal es obligatoria");
             require(req.fechaEmision(), "La fecha de emision es obligatoria");
+            validarFechaEmisionCheque(req.fechaEmision());
         }
     }
 
@@ -150,6 +149,42 @@ public class MetodoPagoService {
 
     private boolean matches(String value, String regex) {
         return value != null && value.trim().matches(regex);
+    }
+
+    // Vencimiento de tarjeta: formato MM/AA, mes 01-12 y que no este vencida.
+    private void validarVencimientoTarjeta(String vto) {
+        String v = vto == null ? "" : vto.trim();
+        if (!v.matches("\\d{2}/\\d{2}")) {
+            throw ApiException.unprocessable(ErrorCodes.VALIDATION_ERROR, "El vencimiento debe tener formato MM/AA");
+        }
+        int mes = Integer.parseInt(v.substring(0, 2));
+        int anio = 2000 + Integer.parseInt(v.substring(3, 5));
+        if (mes < 1 || mes > 12) {
+            throw ApiException.unprocessable(ErrorCodes.VALIDATION_ERROR, "El mes del vencimiento debe estar entre 01 y 12");
+        }
+        if (java.time.YearMonth.of(anio, mes).isBefore(java.time.YearMonth.now())) {
+            throw ApiException.unprocessable(ErrorCodes.VALIDATION_ERROR, "La tarjeta esta vencida");
+        }
+    }
+
+    // Fecha de emision de cheque: formato DD/MM/AAAA, fecha real y no futura.
+    private void validarFechaEmisionCheque(String fecha) {
+        String f = fecha == null ? "" : fecha.trim();
+        if (!f.matches("\\d{2}/\\d{2}/\\d{4}")) {
+            throw ApiException.unprocessable(ErrorCodes.VALIDATION_ERROR, "La fecha de emision debe tener formato DD/MM/AAAA");
+        }
+        int dia = Integer.parseInt(f.substring(0, 2));
+        int mes = Integer.parseInt(f.substring(3, 5));
+        int anio = Integer.parseInt(f.substring(6, 10));
+        java.time.LocalDate emision;
+        try {
+            emision = java.time.LocalDate.of(anio, mes, dia);
+        } catch (java.time.DateTimeException e) {
+            throw ApiException.unprocessable(ErrorCodes.VALIDATION_ERROR, "La fecha de emision no es una fecha valida");
+        }
+        if (emision.isAfter(java.time.LocalDate.now())) {
+            throw ApiException.unprocessable(ErrorCodes.VALIDATION_ERROR, "La fecha de emision no puede ser futura");
+        }
     }
 
     private String firstNonBlank(String... values) {

@@ -14,6 +14,13 @@ export function setAuthToken(token) {
   authToken = token;
 }
 
+// Callback que se dispara cuando una llamada autenticada devuelve 401
+// (token vencido/invalido). Lo registra el AuthContext para cerrar sesion e ir a Login.
+let onUnauthorized = null;
+export function setOnUnauthorized(fn) {
+  onUnauthorized = fn;
+}
+
 client.interceptors.request.use((config) => {
   if (authToken) {
     config.headers.Authorization = `Bearer ${authToken}`;
@@ -28,6 +35,12 @@ client.interceptors.response.use(
   (error) => {
     if (error.response) {
       const data = error.response.data || {};
+      // 401 en una llamada autenticada (no en /api/auth/*) => sesion vencida.
+      const url = error.config?.url || '';
+      const isAuthEndpoint = url.includes('/api/auth/');
+      if (error.response.status === 401 && authToken && !isAuthEndpoint && onUnauthorized) {
+        onUnauthorized();
+      }
       return Promise.reject({
         status: error.response.status,
         code: data.code || 'ERROR',

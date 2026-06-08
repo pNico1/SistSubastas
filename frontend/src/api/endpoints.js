@@ -77,6 +77,7 @@ export const clienteApi = {
 // ---- ADMIN (segun contrato del PDF) ----
 export const adminApi = {
   verificarCliente: (id, data = {}) => client.put(`/api/admin/clientes/${id}/verificar`, data).then((r) => r.data),
+  verificarMetodoPago: (id) => client.put(`/api/admin/metodos-pago/${id}/verificar`).then((r) => r.data),
 
   crearSubasta: (data) => client.post('/api/admin/subastas', data).then((r) => r.data),
   asistentesSubasta: (id) => client.get(`/api/admin/subastas/${id}/asistentes`).then((r) => r.data),

@@ -7,10 +7,12 @@ import {
   TouchableOpacity,
   Dimensions,
 } from 'react-native';
+import { useAuth } from '../context/AuthContext';
 
 const { width } = Dimensions.get('window');
 
 export default function BidCard({ item, navigation }) {
+  const { user } = useAuth();
   return (
     <View style={styles.card}>
       <Image
@@ -44,9 +46,9 @@ export default function BidCard({ item, navigation }) {
         <TouchableOpacity
           style={styles.button}
           onPress={() =>
-            navigation.navigate('SubastaDetail', {
-              id: item.id,
-            })
+            user
+              ? navigation.navigate('SubastaDetail', { id: item.id })
+              : navigation.navigate('Login')
           }
         >
           <Text style={styles.buttonText}>

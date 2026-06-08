@@ -23,7 +23,7 @@ const palette = {
 };
 
 export default function RegisterSuccessScreen({ route, navigation }) {
-  const { user, logout, refreshUser } = useAuth();
+  const { user, login, logout, refreshUser } = useAuth();
   const params = route?.params || {};
   const provisionalPassword = useMemo(
     () => params.provisionalPassword || user?.provisionalPassword || '',
@@ -57,6 +57,16 @@ export default function RegisterSuccessScreen({ route, navigation }) {
     if (user) {
       await logout();
       return;
+    }
+    // Deja la sesion iniciada con la clave provisoria (queda pending_verification).
+    // Al setear el usuario, el navigator pasa solo al stack autenticado (home).
+    if (email && provisionalPassword) {
+      try {
+        await login(email, provisionalPassword);
+        return;
+      } catch (e) {
+        // Si el auto-login falla, caemos al home publico.
+      }
     }
     navigation.navigate('Bidster');
   }

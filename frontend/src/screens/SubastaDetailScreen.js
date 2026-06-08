@@ -48,7 +48,18 @@ export default function SubastaDetailScreen({ route, navigation }) {
       setJoined(true);
       Alert.alert('Te uniste', `Sos el postor N° ${res.numeroPostor}`);
     } catch (err) {
-      Alert.alert('No se pudo unir', err.message || 'Error');
+      if (err.code === 'NO_VERIFIED_PAYMENT_METHOD') {
+        Alert.alert(
+          'Falta un medio de pago',
+          'Necesitás un medio de pago verificado para unirte a una subasta.',
+          [
+            { text: 'Ahora no', style: 'cancel' },
+            { text: 'Agregar medio de pago', onPress: () => navigation.navigate('PaymentMethods') },
+          ]
+        );
+      } else {
+        Alert.alert('No se pudo unir', err.message || 'Error');
+      }
     } finally {
       setJoining(false);
     }
