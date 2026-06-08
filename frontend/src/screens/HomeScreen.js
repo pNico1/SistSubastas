@@ -9,6 +9,7 @@ import {
   Dimensions,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
+import { navigateWithReturnTo } from '../navigationUtils';
 
 const { height: windowHeight } = Dimensions.get('window');
 
@@ -103,7 +104,7 @@ export default function HomeScreen({ navigation }) {
         <TouchableOpacity
           style={styles.navItem}
           activeOpacity={0.8}
-          onPress={() => navigation.navigate('OfrecerBien')}
+          onPress={() => navigateWithReturnTo(navigation, 'OfrecerBien')}
         >
           <MaterialIcons name="add-circle" size={22} color="#2b2a51" />
           <Text style={styles.navLabel}>Subastar</Text>
@@ -111,7 +112,7 @@ export default function HomeScreen({ navigation }) {
         <TouchableOpacity
           style={styles.navItem}
           activeOpacity={0.8}
-          onPress={() => navigation.navigate('Perfil')}
+          onPress={() => navigateWithReturnTo(navigation, 'Perfil')}
         >
           <MaterialIcons name="person" size={22} color="#2b2a51" />
           <Text style={styles.navLabel}>PERFIL</Text>

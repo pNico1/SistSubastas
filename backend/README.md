@@ -12,7 +12,7 @@ Spring Boot 3.2 + Java 17 + MySQL + JWT. Mapea el esquema del TP (Hibernate
 
 1. Crear la base y cargar datos:
    ```bash
-   mysql -u root -p < ../database/01_schema.sql
+   mysql -u root -p < ../database/01_schema.sql ¡¡DROPEA EL SCHEMA "subastas" AUTOMATICAMENTE!!
    mysql -u root -p subastas < ../database/02_seed.sql
    ```
 

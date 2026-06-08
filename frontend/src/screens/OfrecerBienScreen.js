@@ -16,11 +16,12 @@ import Button from '../components/Button';
 import { productosApi } from '../api/endpoints';
 import { useAuth } from '../context/AuthContext';
 import { colors, radius, spacing } from '../theme';
+import { goBackOrReturnTo } from '../navigationUtils';
 
 const MAX_FOTOS = 8;
 
 // Circuito "ofrecer un bien": el dueño carga un producto con fotos para subastar.
-export default function OfrecerBienScreen({ navigation }) {
+export default function OfrecerBienScreen({ navigation, route }) {
   const { user } = useAuth();
   const pendingVerification = user?.estado === 'pending_verification';
   const [form, setForm] = useState({
@@ -100,7 +101,7 @@ export default function OfrecerBienScreen({ navigation }) {
       Alert.alert(
         'Producto enviado',
         `${res.mensaje}. Quedo en estado "${res.estado}" con ${res.cantidadFotos} foto(s).`,
-        [{ text: 'Listo', onPress: () => navigation.goBack() }]
+        [{ text: 'Listo', onPress: () => goBackOrReturnTo(navigation, route) }]
       );
     } catch (err) {
       // Errores conocidos del backend -> a campo puntual cuando aplica.

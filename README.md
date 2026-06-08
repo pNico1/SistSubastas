@@ -12,7 +12,7 @@ entrega2/
 
 1. **Base de datos** (MySQL 8):
    ```bash
-   mysql -u root -p < database/01_schema.sql
+   mysql -u root -p < database/01_schema.sql ¡¡DROPEA EL SCHEMA "subastas" AUTOMATICAMENTE!!
    mysql -u root -p subastas < database/02_seed.sql
    ```
 2. **Backend** (JDK 17 + Maven):
@@ -29,3 +29,5 @@ entrega2/
    npx expo start
    ```
 4. Login con `juan@email.com` (o `admin@subastas.com` para admin) / `Password123!` 
+
+Mas info en frontend/readme.md o backend/readme.md

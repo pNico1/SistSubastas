@@ -28,14 +28,6 @@ integrado con el backend.
 
 > El backend tiene que estar corriendo (ver `../backend/README.md`).
 
-## Pantallas (circuito de pujas)
-1. **Splash** → mientras restaura la sesion.
-2. **Login** → email + password (prellenado para demo).
-3. **Subastas** → lista de subastas abiertas (pull-to-refresh).
-4. **Detalle de subasta** → datos, catalogo y boton "Unirme".
-5. **Pujar (item)** → oferta actual en tiempo real (polling cada 3s),
-   rango de puja min/max y formulario para ofertar.
-
 ## Estructura
 ```
 App.js                  navegacion + flujo segun auth
@@ -47,8 +39,3 @@ src/context/AuthContext.js   login/logout + persistencia del token
 src/components/         Button, Loading, ErrorView, TextField
 src/screens/            Splash, Login, SubastasList, SubastaDetail, ItemDetail
 ```
-
-## Tiempo real
-El seguimiento de la oferta se hace por **polling** de `oferta-actual`.
-Para la entrega 3 se puede migrar a WebSocket/STOMP sin cambiar las pantallas
-(solo la fuente de datos del `ItemDetailScreen`).

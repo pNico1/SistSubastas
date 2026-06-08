@@ -1,24 +1,5 @@
-# Cambios sobre la base de datos original
 
-Regla del TP respetada: **no se modifican los campos (columnas) existentes en su
-semántica**. Solo se corrigen errores de sintaxis, se agregan columnas y se
-agregan tablas nuevas.
-
-## 1. Correcciones de sintaxis del `.sql` original
-
-| # | Tabla | Problema en el original | Corrección |
-|---|-------|-------------------------|------------|
-| F1 | `seguros` | `nroPoliza varchar(30) not null.` terminaba en punto | `,` |
-| F2 | `personas` | faltaba `,` antes de `constraint pk_personas` | agregada |
-| F3 | `duenios` | faltaba `,` luego de `verificador int not null` | agregada |
-| F4 | `asistentes` | faltaba `,` luego de `subasta int not null` | agregada |
-| F5 | `catalogos` | coma sobrante antes del `)` final | eliminada |
-| F6 | `personas.estado` | CHECK con typo `'incativo'` | `'inactivo'` |
-| F7 | `subastas.estado` | CHECK con typo `'carrada'` | `'cerrada'` (+ se agrega `'programada'`) |
-| F8 | `duenios` | columnas con acento (`verificación...`) y encoding roto | sin acento: `verificacionFinanciera`, `verificacionJudicial` |
-| F9 | `subastas.chkFecha` | usaba `GETDATE()` (no determinista) | eliminado el CHECK; la regla "+10 días" se valida en el backend |
-
-## 2. Adaptación T-SQL (SQL Server) → MySQL
+##  Adaptación T-SQL (SQL Server) → MySQL
 
 - `int identity` → `INT AUTO_INCREMENT`
 - `varbinary(max)` → `LONGBLOB`
@@ -28,7 +9,7 @@ agregan tablas nuevas.
 - La FK circular `empleados.sector ↔ sectores.responsableSector` se cierra con un
   `ALTER TABLE` al final del script.
 
-## 3. Columnas agregadas a tablas existentes
+##  Columnas agregadas a tablas existentes
 
 | Tabla | Columnas nuevas | Por qué |
 |-------|-----------------|---------|
@@ -39,7 +20,7 @@ agregan tablas nuevas.
 | `pujos` | `fechaHora` | el TP exige respetar el **orden** de las pujas; `oferta-actual` devuelve timestamp |
 | `registroDeSubasta` | `estado`, `fecha` | adquisición: pendiente → pagado → entregado |
 
-## 4. Tablas nuevas (las exigen los endpoints / el enunciado)
+##  Tablas nuevas
 
 - **`usuarios`** — credenciales y estado de cuenta (1:1 con `personas`). `personas`
   no tiene email ni password, que son imprescindibles para AUTH (register 2 etapas,
@@ -54,10 +35,10 @@ agregan tablas nuevas.
 - **`multas`** — multa del 10% por incumplimiento de pago.
 - **`pagos`** — pago de adquisiciones y de multas.
 
-## 5. Cómo cargar la base
+##  Cómo cargar la base
 
 ```bash
-mysql -u root -p < 01_schema.sql
+mysql -u root -p < 01_schema.sql ¡¡DROPEA EL SCHEMA "subastas" AUTOMATICAMENTE!!
 mysql -u root -p subastas < 02_seed.sql
 ```
 

@@ -4,6 +4,7 @@ import { View, TouchableOpacity, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
+import { navigateWithReturnTo } from '../navigationUtils';
 
 const palette = {
   background: '#F9F5FF',
@@ -52,6 +53,11 @@ export default function BottomNavBar({ navigation }) {
       return;
     }
     if (currentRoute !== tab.key) {
+      if (tab.key === 'Perfil' || tab.key === 'OfrecerBien') {
+        navigateWithReturnTo(navigation, tab.key);
+        return;
+      }
+
       navigation.navigate(tab.key);
     }
   };

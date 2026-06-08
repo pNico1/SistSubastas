@@ -4,6 +4,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
+import { MaterialIcons } from '@expo/vector-icons';
 
 import { AuthProvider, useAuth } from './src/context/AuthContext';
 import SplashScreen from './src/screens/SplashScreen';
@@ -28,6 +29,7 @@ import { colors } from './src/theme';
 import BidsterScreen from './src/screens/BidsterScreen';
 import PujasScreen from './src/screens/PujasScreen';
 import { navigationRef } from './src/navigationRef';
+import { goBackOrReturnTo, navigateWithReturnTo } from './src/navigationUtils';
 const Stack = createNativeStackNavigator();
 
 const navHeader = {
@@ -45,6 +47,20 @@ function LogoutButton() {
   );
 }
 
+function HeaderBackButton({ navigation, route }) {
+  return (
+    <TouchableOpacity
+      onPress={() => goBackOrReturnTo(navigation, route)}
+      hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+      accessibilityRole="button"
+      accessibilityLabel="Volver"
+      style={{ width: 40, height: 40, alignItems: 'center', justifyContent: 'center' }}
+    >
+      <MaterialIcons name="arrow-back" size={24} color="#fff" />
+    </TouchableOpacity>
+  );
+}
+
 // Acciones del header de Subastas: ofrecer un bien + salir.
 function HeaderRightActions({ navigation }) {
   const { user, logout } = useAuth();
@@ -52,7 +68,7 @@ function HeaderRightActions({ navigation }) {
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
       {!pendingVerification ? (
-        <TouchableOpacity onPress={() => navigation.navigate('OfrecerBien')} style={{ marginRight: 16 }}>
+        <TouchableOpacity onPress={() => navigateWithReturnTo(navigation, 'OfrecerBien')} style={{ marginRight: 16 }}>
           <Text style={{ color: '#fff', fontWeight: '600' }}>Ofrecer</Text>
         </TouchableOpacity>
       ) : null}
@@ -156,7 +172,7 @@ function RootNavigator() {
                 title: 'Subastas abiertas',
                 headerRight: () => <HeaderRightActions navigation={navigation} />,
                 headerLeft: () => (
-                  <TouchableOpacity onPress={() => navigation.navigate('Perfil')}>
+                  <TouchableOpacity onPress={() => navigateWithReturnTo(navigation, 'Perfil')}>
                     <Text style={{ color: '#fff', fontWeight: '600' }}>Mi cuenta</Text>
                   </TouchableOpacity>
                 ),
@@ -175,7 +191,10 @@ function RootNavigator() {
             <Stack.Screen
               name="Perfil"
               component={PerfilScreen}
-              options={{ title: 'Mi cuenta' }}
+              options={({ navigation, route }) => ({
+                title: 'Mi cuenta',
+                headerLeft: () => <HeaderBackButton navigation={navigation} route={route} />,
+              })}
             />
             <Stack.Screen
               name="PaymentMethods"
@@ -210,7 +229,10 @@ function RootNavigator() {
             <Stack.Screen
               name="OfrecerBien"
               component={OfrecerBienScreen}
-              options={{ title: 'Ofrecer un bien' }}
+              options={({ navigation, route }) => ({
+                title: 'Ofrecer un bien',
+                headerLeft: () => <HeaderBackButton navigation={navigation} route={route} />,
+              })}
             />
           </>
         )}
