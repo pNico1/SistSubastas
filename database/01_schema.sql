@@ -1,63 +1,272 @@
 -- ============================================================================
---  SISTEMA DE SUBASTAS - Esquema MySQL 8 / MariaDB 10.2+ (entrega 2)
+--  SISTEMA DE SUBASTAS - Esquema MySQL 8 / MariaDB 10.2+
 -- ============================================================================
---  Adaptado desde EstructuraActual.sql (T-SQL / SQL Server).
+--  Las 16 tablas de EstructuraActual.sql estan TAL CUAL el archivo original:
+--  mismas columnas, mismos nombres (incluidos acentos), mismos valores de
+--  CHECK (incluidos los typos 'incativo' y 'carrada'). NO se agregaron
+--  columnas ni FKs. Todo dato extra que necesita la app vive en tablas
+--  aparte (satelites *Datos y tablas nuevas, al final del archivo).
 --
---  REGLAS DEL TP:
---   - NO se modifican los campos (columnas) existentes en su semantica.
---   - SI se permite: corregir errores de sintaxis, agregar columnas y tablas.
---
---  NOTA de compatibilidad MariaDB:
---   Los CHECK van EN LINEA y SIN nombre (CHECK (...)). MariaDB no admite
---   nombrar un CHECK de columna (CONSTRAINT x CHECK ...) inline; MySQL 8 si.
---   Las PK y FK si llevan nombre (CONSTRAINT ...), valido en ambos motores.
---
---  CORRECCIONES sobre el SQL original (ver 03_CAMBIOS.md):
---   [F1] seguros.nroPoliza terminaba en '.' en vez de ','  -> corregido.
---   [F2] personas: faltaba ',' antes de la PK.              -> corregido.
---   [F3] duenios: faltaba ',' luego de 'verificador'.       -> corregido.
---   [F4] asistentes: faltaba ',' luego de 'subasta'.        -> corregido.
---   [F5] catalogos: coma sobrante antes del ')'.            -> corregido.
---   [F6] personas.estado: 'incativo' (typo) -> 'inactivo'.
---   [F7] subastas.estado: 'carrada' (typo) -> 'cerrada'; se agrega 'programada'.
---   [F8] duenios: columnas con acento -> sin acento (coinciden con los endpoints).
---   [F9] chkFecha de subastas usaba GETDATE(): se valida en el backend.
---   [T1] T-SQL -> MySQL/MariaDB: identity->AUTO_INCREMENT, varbinary(max)->LONGBLOB,
---        FK con columna explicita, sin 'go'.
+--  UNICAS correcciones, todas de sintaxis (ver 03_CAMBIOS.md):
+--   [S1] seguros: 'nroPoliza varchar(30) not null.' -> la ',' final.
+--   [S2] personas: faltaba ',' antes de la PK.
+--   [S3] duenios: faltaba ',' despues de 'verificador'.
+--   [S4] asistentes: faltaba ',' despues de 'subasta'.
+--   [S5] catalogos: coma sobrante antes del ')'.
+--   [T1] T-SQL -> MySQL: identity -> AUTO_INCREMENT, varbinary(max) -> LONGBLOB,
+--        sin 'go', FK con columna destino explicita (MySQL la exige).
+--   [T2] CHECK de columna sin nombre (MariaDB no admite nombrarlos inline).
+--   [T3] chkFecha usaba getdate(): MySQL no admite funciones no deterministas
+--        en CHECK. La misma regla se implementa con triggers (al final).
 -- ============================================================================
 
 DROP DATABASE IF EXISTS subastas;
 CREATE DATABASE subastas CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 USE subastas;
 
--- ===========================  TABLAS EXISTENTES  ============================
+-- ====================  TABLAS ORIGINALES (sin modificar)  ===================
 
--- paises ---------------------------------------------------------------------
-CREATE TABLE paises (
-    numero        INT          NOT NULL,
-    nombre        VARCHAR(250) NOT NULL,
-    nombreCorto   VARCHAR(250) NULL,
-    capital       VARCHAR(250) NOT NULL,
-    nacionalidad  VARCHAR(250) NOT NULL,
-    idiomas       VARCHAR(150) NOT NULL,
-    CONSTRAINT pk_paises PRIMARY KEY (numero)
+create table paises(
+    numero int not null,
+    nombre varchar(250) not null,
+    nombreCorto varchar(250) null,
+    capital varchar(250) not null,
+    nacionalidad varchar(250) not null,
+    idiomas varchar(150) not null,
+    constraint pk_paises primary key (numero)
 );
 
--- personas -------------------------------------------------------------------
-CREATE TABLE personas (
-    identificador INT          NOT NULL AUTO_INCREMENT,
-    documento     VARCHAR(20)  NOT NULL,
-    nombre        VARCHAR(150) NOT NULL,
-    direccion     VARCHAR(250),
-    estado        VARCHAR(15)  CHECK (estado IN ('activo','inactivo')),   -- [F6]
-    foto          LONGBLOB,                                               -- [T1]
-    apellido      VARCHAR(150) NULL,        -- AGREGADA: endpoints usan nombre+apellido
-    fotoDocFrente LONGBLOB     NULL,        -- AGREGADA: registro etapa 1
+create table personas(
+    identificador int not null AUTO_INCREMENT,                       -- [T1]
+    documento varchar(20) not null,
+    nombre varchar(150) not null,
+    direccion varchar(250),
+    estado varchar(15) check (estado in ('activo', 'incativo')),     -- [T2]
+    foto LONGBLOB,                                                   -- [T1]
+    constraint pk_personas primary key (identificador)               -- [S2]
+);
+
+create table empleados(
+    identificador int not null,
+    cargo varchar(100),
+    sector int null,
+    constraint pk_empleados primary key (identificador)
+);
+
+create table sectores(
+    identificador int not null AUTO_INCREMENT,                       -- [T1]
+    nombreSector varchar(150) not null,
+    codigoSector varchar(10) null,
+    responsableSector int null,
+    constraint pk_sectores primary key (identificador),
+    constraint fk_sectores_empleados foreign key (responsableSector) references empleados (identificador)  -- [T1]
+);
+
+create table seguros(
+    nroPoliza varchar(30) not null,                                  -- [S1]
+    compania varchar(150) not null,
+    polizaCombinada varchar(2) check(polizaCombinada in ('si','no')),-- [T2]
+    importe decimal(18,2) not null check (importe > 0),              -- [T2]
+    constraint pk_seguro primary key (nroPoliza)
+);
+
+create table clientes(
+    identificador int not null,
+    numeroPais int,
+    admitido varchar(2) check(admitido in ('si','no')),              -- [T2]
+    categoria varchar(10) check (categoria in ('comun', 'especial', 'plata', 'oro', 'platino')),  -- [T2]
+    verificador int not null,
+    constraint pk_clientes primary key (identificador),
+    constraint fk_clientes_personas foreign key (identificador) references personas (identificador),  -- [T1]
+    constraint fk_clientes_empleados foreign key (verificador) references empleados (identificador),
+    constraint fk_clientes_paises foreign key (numeroPais) references paises (numero)
+);
+
+create table duenios(
+    identificador int not null,
+    numeroPais int,
+    `verificaciónFinanciera` varchar(2) check(`verificaciónFinanciera` in ('si','no')),  -- [T2]
+    `verificaciónJudicial` varchar(2) check(`verificaciónJudicial` in ('si','no')),      -- [T2]
+    calificacionRiesgo int check(calificacionRiesgo in (1,2,3,4,5,6)),                   -- [T2]
+    verificador int not null,                                        -- [S3]
+    constraint pk_duenios primary key (identificador),
+    constraint fk_duenios_personas foreign key (identificador) references personas (identificador),  -- [T1]
+    constraint fk_duenios_empleados foreign key (verificador) references empleados (identificador)
+);
+
+create table subastadores(
+    identificador int not null,
+    matricula varchar(15),
+    region varchar(50),
+    constraint pk_subastadores primary key (identificador),
+    constraint fk_subastadores_personas foreign key (identificador) references personas (identificador)  -- [T1]
+);
+
+create table subastas(
+    identificador int not null AUTO_INCREMENT,                       -- [T1]
+    -- las subastas tiene al menos 10 dias de anticipacion al momento de crearlas.
+    fecha date,                                                      -- [T3] chkFecha -> trigger
+    hora time not null,
+    estado varchar(10) check (estado in ('abierta','carrada')),      -- [T2]
+    subastador int null,
+    -- direccion de don de se desarrolla el evento.
+    ubicacion varchar(350) null,
+    capacidadAsistentes int null,
+    -- caracteristica del lugar donde se hacen las subastas
+    tieneDeposito varchar(2) check(tieneDeposito in ('si','no')),    -- [T2]
+    -- caracteristica del lugar donde se hacen las subastas
+    seguridadPropia varchar(2) check(seguridadPropia in ('si','no')),-- [T2]
+    categoria varchar(10) check (categoria in ('comun', 'especial', 'plata', 'oro', 'platino')),  -- [T2]
+    constraint pk_subastas primary key (identificador),
+    constraint fk_subastas_subastadores foreign key (subastador) references subastadores(identificador)
+);
+
+create table productos(
+    identificador int not null AUTO_INCREMENT,                       -- [T1]
+    fecha date,
+    disponible varchar(2) check (disponible in ('si','no')),         -- [T2]
+    -- se obtiene despues que un empleado realiza la revision.
+    descripcionCatalogo varchar(500) null default 'No Posee',
+    -- url que apunta a un documento PDF firmado que contiene la descripcion del producto.
+    descripcionCompleta varchar(300) not null,
+    revisor int not null,
+    duenio int not null,
+    seguro varchar(30) null,
+    constraint pk_productos primary key (identificador),
+    constraint fk_productos_empleados foreign key (revisor) references empleados(identificador),
+    constraint fk_productos_duenios foreign key (duenio) references duenios(identificador)
+);
+
+create table fotos(
+    identificador int not null AUTO_INCREMENT,                       -- [T1]
+    producto int not null,
+    foto LONGBLOB not null,                                          -- [T1]
+    constraint pk_fotos primary key (identificador),
+    constraint fk_fotos_productos foreign key (producto) references productos(identificador)
+);
+
+create table catalogos(
+    identificador int not null AUTO_INCREMENT,                       -- [T1]
+    descripcion varchar(250) not null,
+    subasta int null,
+    responsable int not null,
+    constraint pk_catalogos primary key (identificador),
+    constraint fk_catalogos_empleados foreign key (responsable) references empleados(identificador),
+    constraint fk_catalogos_subastas foreign key (subasta) references subastas(identificador)   -- [S5]
+);
+
+create table itemsCatalogo(
+    identificador int not null AUTO_INCREMENT,                       -- [T1]
+    catalogo int not null,
+    producto int not null,
+    precioBase decimal(18,2) not null check (precioBase > 0.01),     -- [T2]
+    comision decimal(18,2) not null check (comision > 0.01),         -- [T2]
+    subastado varchar(2) check (subastado in ('si','no')),           -- [T2]
+    constraint pk_itemsCatalogo primary key (identificador),
+    constraint fk_itemsCatalogo_catalogos foreign key (catalogo) references catalogos (identificador),  -- [T1]
+    constraint fk_itemsCatalogo_productos foreign key (producto) references productos (identificador)   -- [T1]
+);
+
+create table asistentes(
+    identificador int not null AUTO_INCREMENT,                       -- [T1]
+    numeroPostor int not null,
+    cliente int not null,
+    subasta int not null,                                            -- [S4]
+    constraint pk_asistentes primary key (identificador),
+    constraint fk_asistentes_clientes foreign key (cliente) references clientes (identificador),  -- [T1]
+    constraint fk_asistentes_subasta foreign key (subasta) references subastas (identificador)    -- [T1]
+);
+
+create table pujos(
+    identificador int not null AUTO_INCREMENT,                       -- [T1]
+    asistente int not null,
+    item int not null,
+    importe decimal(18,2) not null check (importe > 0.01),           -- [T2]
+    ganador varchar(2) default 'no' check (ganador in ('si','no')),  -- [T2]
+    constraint pk_pujos primary key (identificador),
+    constraint fk_pujos_asistentes foreign key (asistente) references asistentes (identificador),       -- [T1]
+    constraint fk_pujos_itemsCatalogo foreign key (item) references itemsCatalogo (identificador)       -- [T1]
+);
+
+create table registroDeSubasta(
+    identificador int not null AUTO_INCREMENT,                       -- [T1]
+    subasta int not null,
+    duenio int not null,
+    producto int not null,
+    cliente int not null,
+    importe decimal(18,2) not null check (importe > 0.01),           -- [T2]
+    comision decimal(18,2) not null check (comision > 0.01),         -- [T2]
+    constraint pk_registroDeSubasta primary key (identificador),
+    constraint fk_registroDeSubasta_subastas foreign key (subasta) references subastas (identificador),   -- [T1]
+    constraint fk_registroDeSubasta_duenios foreign key (duenio) references duenios (identificador),      -- [T1]
+    constraint fk_registroDeSubasta_producto foreign key (producto) references productos (identificador), -- [T1]
+    constraint fk_registroDeSubasta_cliente foreign key (cliente) references clientes (identificador)     -- [T1]
+);
+
+-- ==========  TABLAS SATELITE (datos de la app, 1:1 con la original)  ========
+--  La PK de cada satelite es a la vez FK a su tabla original.
+
+-- apellido y fotos del documento (registro etapa 1)
+CREATE TABLE personasDatos (
+    persona       INT          NOT NULL,
+    apellido      VARCHAR(150) NULL,
+    fotoDocFrente LONGBLOB     NULL,
     fotoDocDorso  LONGBLOB     NULL,
-    CONSTRAINT pk_personas PRIMARY KEY (identificador)                    -- [F2]
+    CONSTRAINT pk_personasDatos PRIMARY KEY (persona),
+    CONSTRAINT fk_personasDatos_personas FOREIGN KEY (persona) REFERENCES personas (identificador)
 );
 
--- usuarios (NUEVA): credenciales/estado de cuenta para auth (1:1 con personas)
+-- moneda de la subasta (el TP exige ARS o USD, no bimonetaria)
+CREATE TABLE subastasDatos (
+    subasta INT        NOT NULL,
+    moneda  VARCHAR(3) NOT NULL DEFAULT 'ARS' CHECK (moneda IN ('ARS','USD')),
+    CONSTRAINT pk_subastasDatos PRIMARY KEY (subasta),
+    CONSTRAINT fk_subastasDatos_subastas FOREIGN KEY (subasta) REFERENCES subastas (identificador)
+);
+
+-- ciclo de revision/aceptacion y datos de obras de arte
+CREATE TABLE productosDatos (
+    producto          INT           NOT NULL,
+    estado            VARCHAR(20)   NULL DEFAULT 'en_revision'
+        CHECK (estado IN ('en_revision','aprobado','rechazado','aceptado','en_subasta','vendido','devuelto')),
+    nombreArtista     VARCHAR(200)  NULL,
+    fechaObra         VARCHAR(50)   NULL,
+    historia          VARCHAR(1000) NULL,
+    terminosAceptados VARCHAR(2)    NULL DEFAULT 'no' CHECK (terminosAceptados IN ('si','no')),
+    CONSTRAINT pk_productosDatos PRIMARY KEY (producto),
+    CONSTRAINT fk_productosDatos_productos FOREIGN KEY (producto) REFERENCES productos (identificador)
+);
+
+-- url y orden de las fotos (los endpoints las devuelven asi)
+CREATE TABLE fotosDatos (
+    foto  INT          NOT NULL,
+    url   VARCHAR(300) NULL,
+    orden INT          NULL,
+    CONSTRAINT pk_fotosDatos PRIMARY KEY (foto),
+    CONSTRAINT fk_fotosDatos_fotos FOREIGN KEY (foto) REFERENCES fotos (identificador)
+);
+
+-- timestamp de la puja (el TP exige respetar el orden de las pujas)
+CREATE TABLE pujosDatos (
+    pujo      INT      NOT NULL,
+    fechaHora DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT pk_pujosDatos PRIMARY KEY (pujo),
+    CONSTRAINT fk_pujosDatos_pujos FOREIGN KEY (pujo) REFERENCES pujos (identificador)
+);
+
+-- estado y fecha de la adquisicion: pendiente -> pagado -> entregado
+CREATE TABLE registroDeSubastaDatos (
+    registro INT         NOT NULL,
+    estado   VARCHAR(15) NULL DEFAULT 'pendiente'
+        CHECK (estado IN ('pendiente','pagado','entregado','en_mora')),
+    fecha    DATETIME    NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT pk_registroDeSubastaDatos PRIMARY KEY (registro),
+    CONSTRAINT fk_rdsDatos_rds FOREIGN KEY (registro) REFERENCES registroDeSubasta (identificador)
+);
+
+-- ========================  TABLAS NUEVAS (de la app)  =======================
+
+-- usuarios: credenciales/estado de cuenta para auth (1:1 con personas)
 CREATE TABLE usuarios (
     id              INT          NOT NULL AUTO_INCREMENT,
     persona         INT          NOT NULL,
@@ -74,7 +283,7 @@ CREATE TABLE usuarios (
     CONSTRAINT fk_usuarios_personas FOREIGN KEY (persona) REFERENCES personas (identificador)
 );
 
--- tokens (NUEVA): verificacion de registro, refresh y reset de password.
+-- tokens: verificacion de registro, refresh y reset de password.
 CREATE TABLE tokens (
     id          INT          NOT NULL AUTO_INCREMENT,
     usuario     INT          NOT NULL,
@@ -87,189 +296,7 @@ CREATE TABLE tokens (
     CONSTRAINT fk_tokens_usuarios FOREIGN KEY (usuario) REFERENCES usuarios (id)
 );
 
--- empleados ------------------------------------------------------------------
-CREATE TABLE empleados (
-    identificador INT          NOT NULL,
-    cargo         VARCHAR(100),
-    sector        INT          NULL,
-    CONSTRAINT pk_empleados PRIMARY KEY (identificador),
-    CONSTRAINT fk_empleados_personas FOREIGN KEY (identificador) REFERENCES personas (identificador)
-);
-
--- sectores -------------------------------------------------------------------
-CREATE TABLE sectores (
-    identificador      INT          NOT NULL AUTO_INCREMENT,
-    nombreSector       VARCHAR(150) NOT NULL,
-    codigoSector       VARCHAR(10)  NULL,
-    responsableSector  INT          NULL,
-    CONSTRAINT pk_sectores PRIMARY KEY (identificador),
-    CONSTRAINT fk_sectores_empleados FOREIGN KEY (responsableSector) REFERENCES empleados (identificador)
-);
-
--- seguros --------------------------------------------------------------------
-CREATE TABLE seguros (
-    nroPoliza        VARCHAR(30)   NOT NULL,                  -- [F1]
-    compania         VARCHAR(150)  NOT NULL,
-    polizaCombinada  VARCHAR(2)    CHECK (polizaCombinada IN ('si','no')),
-    importe          DECIMAL(18,2) NOT NULL CHECK (importe > 0),
-    CONSTRAINT pk_seguro PRIMARY KEY (nroPoliza)
-);
-
--- clientes -------------------------------------------------------------------
-CREATE TABLE clientes (
-    identificador INT         NOT NULL,
-    numeroPais    INT,
-    admitido      VARCHAR(2)  CHECK (admitido IN ('si','no')),
-    categoria     VARCHAR(10) CHECK (categoria IN ('comun','especial','plata','oro','platino')),
-    verificador   INT         NOT NULL,
-    CONSTRAINT pk_clientes PRIMARY KEY (identificador),
-    CONSTRAINT fk_clientes_personas  FOREIGN KEY (identificador) REFERENCES personas (identificador),
-    CONSTRAINT fk_clientes_empleados FOREIGN KEY (verificador)   REFERENCES empleados (identificador),
-    CONSTRAINT fk_clientes_paises    FOREIGN KEY (numeroPais)    REFERENCES paises (numero)
-);
-
--- duenios --------------------------------------------------------------------
-CREATE TABLE duenios (
-    identificador          INT        NOT NULL,
-    numeroPais             INT,
-    verificacionFinanciera VARCHAR(2) CHECK (verificacionFinanciera IN ('si','no')),  -- [F8]
-    verificacionJudicial   VARCHAR(2) CHECK (verificacionJudicial   IN ('si','no')),  -- [F8]
-    calificacionRiesgo     INT        CHECK (calificacionRiesgo IN (1,2,3,4,5,6)),
-    verificador            INT        NOT NULL,                                        -- [F3]
-    CONSTRAINT pk_duenios PRIMARY KEY (identificador),
-    CONSTRAINT fk_duenios_personas  FOREIGN KEY (identificador) REFERENCES personas (identificador),
-    CONSTRAINT fk_duenios_empleados FOREIGN KEY (verificador)   REFERENCES empleados (identificador)
-);
-
--- subastadores ---------------------------------------------------------------
-CREATE TABLE subastadores (
-    identificador INT         NOT NULL,
-    matricula     VARCHAR(15),
-    region        VARCHAR(50),
-    CONSTRAINT pk_subastadores PRIMARY KEY (identificador),
-    CONSTRAINT fk_subastadores_personas FOREIGN KEY (identificador) REFERENCES personas (identificador)
-);
-
--- subastas -------------------------------------------------------------------
-CREATE TABLE subastas (
-    identificador        INT         NOT NULL AUTO_INCREMENT,
-    fecha                DATE,                                  -- [F9] regla +10 dias en el backend
-    hora                 TIME        NOT NULL,
-    estado               VARCHAR(10) CHECK (estado IN ('abierta','cerrada','programada')),  -- [F7]
-    subastador           INT         NULL,
-    ubicacion            VARCHAR(350) NULL,
-    capacidadAsistentes  INT         NULL,
-    tieneDeposito        VARCHAR(2)  CHECK (tieneDeposito  IN ('si','no')),
-    seguridadPropia      VARCHAR(2)  CHECK (seguridadPropia IN ('si','no')),
-    categoria            VARCHAR(10) CHECK (categoria IN ('comun','especial','plata','oro','platino')),
-    moneda               VARCHAR(3)  NOT NULL DEFAULT 'ARS' CHECK (moneda IN ('ARS','USD')),  -- AGREGADA
-    CONSTRAINT pk_subastas PRIMARY KEY (identificador),
-    CONSTRAINT fk_subastas_subastadores FOREIGN KEY (subastador) REFERENCES subastadores (identificador)
-);
-
--- productos ------------------------------------------------------------------
-CREATE TABLE productos (
-    identificador        INT          NOT NULL AUTO_INCREMENT,
-    fecha                DATE,
-    disponible           VARCHAR(2)   CHECK (disponible IN ('si','no')),
-    descripcionCatalogo  VARCHAR(500) NULL DEFAULT 'No Posee',
-    descripcionCompleta  VARCHAR(300) NOT NULL,
-    revisor              INT          NOT NULL,
-    duenio               INT          NOT NULL,
-    seguro               VARCHAR(30)  NULL,
-    estado               VARCHAR(20)  NULL DEFAULT 'en_revision'             -- AGREGADA
-        CHECK (estado IN ('en_revision','aprobado','rechazado','aceptado','en_subasta','vendido','devuelto')),
-    nombreArtista        VARCHAR(200) NULL,
-    fechaObra            VARCHAR(50)  NULL,
-    historia             VARCHAR(1000) NULL,
-    terminosAceptados    VARCHAR(2)   NULL DEFAULT 'no' CHECK (terminosAceptados IN ('si','no')),
-    CONSTRAINT pk_productos PRIMARY KEY (identificador),
-    CONSTRAINT fk_productos_empleados FOREIGN KEY (revisor) REFERENCES empleados (identificador),
-    CONSTRAINT fk_productos_duenios   FOREIGN KEY (duenio)  REFERENCES duenios (identificador),
-    CONSTRAINT fk_productos_seguros   FOREIGN KEY (seguro)  REFERENCES seguros (nroPoliza)
-);
-
--- fotos ----------------------------------------------------------------------
-CREATE TABLE fotos (
-    identificador INT      NOT NULL AUTO_INCREMENT,
-    producto      INT      NOT NULL,
-    foto          LONGBLOB NOT NULL,
-    url           VARCHAR(300) NULL,       -- AGREGADA
-    orden         INT          NULL,
-    CONSTRAINT pk_fotos PRIMARY KEY (identificador),
-    CONSTRAINT fk_fotos_productos FOREIGN KEY (producto) REFERENCES productos (identificador)
-);
-
--- catalogos ------------------------------------------------------------------
-CREATE TABLE catalogos (
-    identificador INT          NOT NULL AUTO_INCREMENT,
-    descripcion   VARCHAR(250) NOT NULL,
-    subasta       INT          NULL,
-    responsable   INT          NOT NULL,
-    CONSTRAINT pk_catalogos PRIMARY KEY (identificador),
-    CONSTRAINT fk_catalogos_empleados FOREIGN KEY (responsable) REFERENCES empleados (identificador),
-    CONSTRAINT fk_catalogos_subastas  FOREIGN KEY (subasta)     REFERENCES subastas (identificador)  -- [F5]
-);
-
--- itemsCatalogo --------------------------------------------------------------
-CREATE TABLE itemsCatalogo (
-    identificador INT           NOT NULL AUTO_INCREMENT,
-    catalogo      INT           NOT NULL,
-    producto      INT           NOT NULL,
-    precioBase    DECIMAL(18,2) NOT NULL CHECK (precioBase > 0.01),
-    comision      DECIMAL(18,2) NOT NULL CHECK (comision   > 0.01),
-    subastado     VARCHAR(2)    CHECK (subastado IN ('si','no')),
-    CONSTRAINT pk_itemsCatalogo PRIMARY KEY (identificador),
-    CONSTRAINT fk_itemsCatalogo_catalogos FOREIGN KEY (catalogo) REFERENCES catalogos (identificador),
-    CONSTRAINT fk_itemsCatalogo_productos FOREIGN KEY (producto) REFERENCES productos (identificador)
-);
-
--- asistentes -----------------------------------------------------------------
-CREATE TABLE asistentes (
-    identificador INT NOT NULL AUTO_INCREMENT,
-    numeroPostor  INT NOT NULL,
-    cliente       INT NOT NULL,
-    subasta       INT NOT NULL,                                     -- [F4]
-    CONSTRAINT pk_asistentes PRIMARY KEY (identificador),
-    CONSTRAINT fk_asistentes_clientes FOREIGN KEY (cliente) REFERENCES clientes (identificador),
-    CONSTRAINT fk_asistentes_subasta  FOREIGN KEY (subasta) REFERENCES subastas (identificador)
-);
-
--- pujos ----------------------------------------------------------------------
-CREATE TABLE pujos (
-    identificador INT           NOT NULL AUTO_INCREMENT,
-    asistente     INT           NOT NULL,
-    item          INT           NOT NULL,
-    importe       DECIMAL(18,2) NOT NULL CHECK (importe > 0.01),
-    ganador       VARCHAR(2)    DEFAULT 'no' CHECK (ganador IN ('si','no')),
-    fechaHora     DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,   -- AGREGADA: orden de pujas
-    CONSTRAINT pk_pujos PRIMARY KEY (identificador),
-    CONSTRAINT fk_pujos_asistentes    FOREIGN KEY (asistente) REFERENCES asistentes (identificador),
-    CONSTRAINT fk_pujos_itemsCatalogo FOREIGN KEY (item)      REFERENCES itemsCatalogo (identificador)
-);
-
--- registroDeSubasta (= adquisiciones) ----------------------------------------
-CREATE TABLE registroDeSubasta (
-    identificador INT           NOT NULL AUTO_INCREMENT,
-    subasta       INT           NOT NULL,
-    duenio        INT           NOT NULL,
-    producto      INT           NOT NULL,
-    cliente       INT           NOT NULL,
-    importe       DECIMAL(18,2) NOT NULL CHECK (importe  > 0.01),
-    comision      DECIMAL(18,2) NOT NULL CHECK (comision > 0.01),
-    estado        VARCHAR(15)   NULL DEFAULT 'pendiente'              -- AGREGADA
-        CHECK (estado IN ('pendiente','pagado','entregado','en_mora')),
-    fecha         DATETIME      NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT pk_registroDeSubasta PRIMARY KEY (identificador),
-    CONSTRAINT fk_rds_subastas  FOREIGN KEY (subasta)  REFERENCES subastas (identificador),
-    CONSTRAINT fk_rds_duenios   FOREIGN KEY (duenio)   REFERENCES duenios (identificador),
-    CONSTRAINT fk_rds_productos FOREIGN KEY (producto) REFERENCES productos (identificador),
-    CONSTRAINT fk_rds_clientes  FOREIGN KEY (cliente)  REFERENCES clientes (identificador)
-);
-
--- ============================  TABLAS NUEVAS  ===============================
-
--- mediosPago (NUEVA): tarjetas, cuentas bancarias o cheques certificados.
+-- mediosPago: tarjetas, cuentas bancarias o cheques certificados.
 CREATE TABLE mediosPago (
     id              INT          NOT NULL AUTO_INCREMENT,
     cliente         INT          NOT NULL,
@@ -288,7 +315,7 @@ CREATE TABLE mediosPago (
     CONSTRAINT fk_mediosPago_clientes FOREIGN KEY (cliente) REFERENCES clientes (identificador)
 );
 
--- notificaciones (NUEVA)
+-- notificaciones
 CREATE TABLE notificaciones (
     id       INT          NOT NULL AUTO_INCREMENT,
     cliente  INT          NOT NULL,
@@ -300,7 +327,7 @@ CREATE TABLE notificaciones (
     CONSTRAINT fk_notificaciones_clientes FOREIGN KEY (cliente) REFERENCES clientes (identificador)
 );
 
--- revisiones (NUEVA): ciclo de inspeccion de un producto.
+-- revisiones: ciclo de inspeccion de un producto.
 CREATE TABLE revisiones (
     id            INT          NOT NULL AUTO_INCREMENT,
     producto      INT          NOT NULL,
@@ -314,7 +341,7 @@ CREATE TABLE revisiones (
     CONSTRAINT fk_revisiones_empleados FOREIGN KEY (revisor)  REFERENCES empleados (identificador)
 );
 
--- entregas (NUEVA): envio o retiro de una adquisicion.
+-- entregas: envio o retiro de una adquisicion.
 CREATE TABLE entregas (
     id                INT          NOT NULL AUTO_INCREMENT,
     adquisicion       INT          NOT NULL,
@@ -329,7 +356,7 @@ CREATE TABLE entregas (
     CONSTRAINT fk_entregas_rds FOREIGN KEY (adquisicion) REFERENCES registroDeSubasta (identificador)
 );
 
--- facturas (NUEVA)
+-- facturas
 CREATE TABLE facturas (
     id            INT           NOT NULL AUTO_INCREMENT,
     adquisicion   INT           NOT NULL,
@@ -344,7 +371,7 @@ CREATE TABLE facturas (
     CONSTRAINT fk_facturas_rds FOREIGN KEY (adquisicion) REFERENCES registroDeSubasta (identificador)
 );
 
--- multas (NUEVA): 10% por incumplimiento de pago.
+-- multas: 10% por incumplimiento de pago.
 CREATE TABLE multas (
     id          INT           NOT NULL AUTO_INCREMENT,
     cliente     INT           NOT NULL,
@@ -358,7 +385,7 @@ CREATE TABLE multas (
     CONSTRAINT fk_multas_rds      FOREIGN KEY (adquisicion) REFERENCES registroDeSubasta (identificador)
 );
 
--- pagos (NUEVA): pago de adquisiciones y de multas.
+-- pagos: pago de adquisiciones y de multas.
 CREATE TABLE pagos (
     id           INT           NOT NULL AUTO_INCREMENT,
     adquisicion  INT           NULL,
@@ -374,6 +401,15 @@ CREATE TABLE pagos (
     CONSTRAINT fk_pagos_mediosPago FOREIGN KEY (medioPago)   REFERENCES mediosPago (id)
 );
 
--- ================  FK CIRCULAR empleados.sector -> sectores  ================
-ALTER TABLE empleados
-    ADD CONSTRAINT fk_empleados_sectores FOREIGN KEY (sector) REFERENCES sectores (identificador);
+-- ====================  TRIGGERS: regla de chkFecha [T3]  ====================
+--  Original (T-SQL): check (fecha > dateAdd(dd, 10, getdate()))
+--  "las subastas tiene al menos 10 dias de anticipacion al momento de crearlas"
+--  En UPDATE solo se valida si cambia la fecha (si no, cerrar una subasta
+--  vieja seria imposible).
+
+DELIMITER $$
+
+CREATE TRIGGER trg_subastas_fecha_ins BEFORE INSERT ON subastas
+FOR EACH ROW
+BEGIN
+    IF NEW.fecha IS NOT NULL AND 

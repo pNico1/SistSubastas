@@ -7,8 +7,14 @@ import lombok.Setter;
 
 import java.time.LocalDate;
 
+/**
+ * Tabla original 'productos' (no se puede modificar) + satelite 'productosDatos'
+ * con el ciclo de revision/aceptacion y los datos de obras de arte.
+ */
 @Entity
 @Table(name = "productos")
+@SecondaryTable(name = "productosDatos",
+        pkJoinColumns = @PrimaryKeyJoinColumn(name = "producto"))
 @Getter @Setter @NoArgsConstructor
 public class Producto {
 
@@ -23,9 +29,20 @@ public class Producto {
     private Integer revisor;
     private Integer duenio;
     private String seguro;                // nroPoliza
+
+    // --- satelite productosDatos ---
+    @Column(table = "productosDatos")
     private String estado;                // en_revision / aprobado / rechazado / aceptado / en_subasta / vendido / devuelto
+
+    @Column(table = "productosDatos")
     private String nombreArtista;
+
+    @Column(table = "productosDatos")
     private String fechaObra;
+
+    @Column(table = "productosDatos")
     private String historia;
+
+    @Column(table = "productosDatos")
     private String terminosAceptados;     // si / no
 }

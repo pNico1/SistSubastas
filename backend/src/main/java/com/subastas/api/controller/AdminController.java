@@ -128,7 +128,10 @@ public class AdminController {
         s.setCategoria(strOr(body, "categoria", "comun"));
         s.setSubastador(integer(body, "subastador"));
         s.setMoneda(strOr(body, "moneda", "ARS"));
-        s.setEstado(strOr(body, "estado", "programada"));
+        // El CHECK original de subastas.estado solo admite 'abierta'/'carrada'
+        // (typo literal de EstructuraActual.sql). NULL = aun no abierta.
+        String estado = str(body, "estado");
+        s.setEstado(("abierta".equals(estado) || "carrada".equals(estado)) ? estado : null);
         s = subastaRepo.save(s);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(Map.of("id", s.getIdentificador(), "mensaje", "Subasta creada"));
@@ -143,7 +146,7 @@ public class AdminController {
     @PostMapping("/subastas/{id}/cerrar")
     public Map<String, String> closeSubasta(@PathVariable Integer id) {
         Subasta s = requireSubasta(id);
-        s.setEstado("cerrada");
+        s.setEstado("carrada");   // valor literal del CHECK original (typo por 'cerrada')
         subastaRepo.save(s);
         return Map.of("mensaje", "Subasta cerrada correctamente");
     }

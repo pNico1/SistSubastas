@@ -1,33 +1,50 @@
+# Cambios respecto de EstructuraActual.sql
 
-##  Adaptación T-SQL (SQL Server) → MySQL
+Regla: las 16 tablas originales están en la base **tal cual el archivo**: mismas
+columnas, mismos nombres (incluidos los acentos de `duenios`), mismos valores de
+CHECK (incluidos los typos `'incativo'` y `'carrada'`). No se les agregó ninguna
+columna ni FK. Todo dato que necesita la app vive en tablas aparte.
 
-- `int identity` → `INT AUTO_INCREMENT`
-- `varbinary(max)` → `LONGBLOB`
-- FK sin columna destino (`references empleados`) → con columna explícita (`REFERENCES empleados(identificador)`)
-- Se elimina el separador de lote `go`
-- Charset `utf8mb4` para soportar acentos en los **datos** (no en los nombres de columna)
-- La FK circular `empleados.sector ↔ sectores.responsableSector` se cierra con un
-  `ALTER TABLE` al final del script.
+## Únicas correcciones (solo sintaxis)
 
-##  Columnas agregadas a tablas existentes
+| # | Corrección |
+|---|------------|
+| S1 | `seguros`: `nroPoliza varchar(30) not null.` → la `.` final era una `,` |
+| S2 | `personas`: faltaba `,` antes de la PK |
+| S3 | `duenios`: faltaba `,` después de `verificador` |
+| S4 | `asistentes`: faltaba `,` después de `subasta` |
+| S5 | `catalogos`: coma sobrante antes del `)` |
+| T1 | T-SQL → MySQL: `identity` → `AUTO_INCREMENT`, `varbinary(max)` → `LONGBLOB`, sin `go`, FK con columna destino explícita (MySQL la exige) |
+| T2 | CHECK de columna sin nombre (MariaDB no admite nombrarlos inline) |
+| T3 | `chkFecha` usaba `getdate()`: MySQL no admite funciones no deterministas en CHECK. La misma regla (+10 días) se implementa con triggers `trg_subastas_fecha_ins/upd` |
 
-| Tabla | Columnas nuevas | Por qué |
-|-------|-----------------|---------|
-| `personas` | `apellido`, `fotoDocFrente`, `fotoDocDorso` | los endpoints usan nombre+apellido; el registro etapa 1 sube foto de documento |
-| `subastas` | `moneda` (`ARS`/`USD`) | el TP exige subastas en pesos o dólares, no bimonetarias |
-| `productos` | `estado`, `nombreArtista`, `fechaObra`, `historia`, `terminosAceptados` | ciclo de revisión/aceptación y datos de obras de arte |
-| `fotos` | `url`, `orden` | el endpoint de fotos devuelve url y orden |
-| `pujos` | `fechaHora` | el TP exige respetar el **orden** de las pujas; `oferta-actual` devuelve timestamp |
-| `registroDeSubasta` | `estado`, `fecha` | adquisición: pendiente → pagado → entregado |
+## Tablas satélite (1:1 con la original, PK = FK)
 
-##  Tablas nuevas
+Reemplazan a las columnas que antes se habían agregado a las tablas originales:
 
-- **`usuarios`** — credenciales y estado de cuenta (1:1 con `personas`). `personas`
-  no tiene email ni password, que son imprescindibles para AUTH (register 2 etapas,
-  login, refresh, reset).
+| Satélite | Columnas | Antes estaba en |
+|----------|----------|-----------------|
+| `personasDatos` | `apellido`, `fotoDocFrente`, `fotoDocDorso` | `personas` |
+| `subastasDatos` | `moneda` (ARS/USD) | `subastas` |
+| `productosDatos` | `estado`, `nombreArtista`, `fechaObra`, `historia`, `terminosAceptados` | `productos` |
+| `fotosDatos` | `url`, `orden` | `fotos` |
+| `pujosDatos` | `fechaHora` | `pujos` |
+| `registroDeSubastaDatos` | `estado`, `fecha` | `registroDeSubasta` |
+
+En el backend se mapean con `@SecondaryTable` de JPA, así que las entidades y
+servicios siguen usando los mismos campos.
+
+## Estados de subasta
+
+El CHECK original solo admite `'abierta'` / `'carrada'` (typo literal). El valor
+`'programada'` ya no existe: una subasta aún no abierta tiene `estado = NULL`.
+Para cerrar una subasta el backend escribe `'carrada'`.
+
+## Tablas nuevas
+
+- **`usuarios`** — credenciales y estado de cuenta (1:1 con `personas`).
 - **`tokens`** — verificación de registro, refresh y reset de password.
-- **`mediosPago`** — tarjetas, cuentas bancarias y cheques certificados. Se necesita
-  al menos uno **verificado** para poder pujar.
+- **`mediosPago`** — tarjetas, cuentas bancarias y cheques certificados.
 - **`notificaciones`** — mensajes al cliente (p. ej. `PUJA_SUPERADA`).
 - **`revisiones`** — ciclo de inspección de un producto.
 - **`entregas`** — envío o retiro de una adquisición.
@@ -35,12 +52,16 @@
 - **`multas`** — multa del 10% por incumplimiento de pago.
 - **`pagos`** — pago de adquisiciones y de multas.
 
-##  Cómo cargar la base
+Total: 16 originales + 6 satélites + 9 nuevas = **31 tablas**.
+
+## Cómo cargar la base
 
 ```bash
-mysql -u root -p < 01_schema.sql ¡¡DROPEA EL SCHEMA "subastas" AUTOMATICAMENTE!!
+mysql -u root -p < 01_schema.sql   # ¡¡DROPEA EL SCHEMA "subastas" AUTOMATICAMENTE!!
 mysql -u root -p subastas < 02_seed.sql
 ```
+
+El seed usa fechas relativas a `CURDATE()` para cumplir el trigger de +10 días.
 
 Usuarios de prueba (password para todos: `Password123!`):
 
@@ -50,6 +71,6 @@ Usuarios de prueba (password para todos: `Password123!`):
 | `maria@email.com` | cliente | plata |
 | `admin@subastas.com` | empleado/admin | — |
 
-> Validación: el esquema y el seed se verificaron con `sqlglot` (dialecto MySQL):
-> 25 tablas, todas las FK resuelven, el seed respeta integridad referencial y
-> todos los CHECK (enums) son válidos.
+> Validación: schema y seed parsean con `sqlglot` (dialecto MySQL); se verificó
+> programáticamente que las 16 tablas originales tienen exactamente las columnas
+> del archivo, que las 42 FK resuelven y que el seed respeta la estructura.

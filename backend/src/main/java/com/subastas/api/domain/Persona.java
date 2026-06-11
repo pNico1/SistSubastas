@@ -5,8 +5,14 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+/**
+ * Tabla original 'personas' (no se puede modificar) + satelite 'personasDatos'
+ * con los datos que necesita la app (apellido, fotos del documento).
+ */
 @Entity
 @Table(name = "personas")
+@SecondaryTable(name = "personasDatos",
+        pkJoinColumns = @PrimaryKeyJoinColumn(name = "persona"))
 @Getter @Setter @NoArgsConstructor
 public class Persona {
 
@@ -16,16 +22,19 @@ public class Persona {
 
     private String documento;
     private String nombre;
-    private String apellido;
     private String direccion;
-    private String estado;   // activo / inactivo
+    private String estado;   // activo / incativo (typo literal del CHECK original)
+
+    // --- satelite personasDatos ---
+    @Column(table = "personasDatos")
+    private String apellido;
 
     // Fotos del documento (frente/dorso) cargadas en el registro. Opcionales.
     @Lob
-    @Column(columnDefinition = "LONGBLOB")
+    @Column(table = "personasDatos", columnDefinition = "LONGBLOB")
     private byte[] fotoDocFrente;
 
     @Lob
-    @Column(columnDefinition = "LONGBLOB")
+    @Column(table = "personasDatos", columnDefinition = "LONGBLOB")
     private byte[] fotoDocDorso;
 }

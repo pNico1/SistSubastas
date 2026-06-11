@@ -8,8 +8,14 @@ import lombok.Setter;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
+/**
+ * Tabla original 'pujos' (no se puede modificar) + satelite 'pujosDatos'
+ * (timestamp para respetar el orden de las pujas).
+ */
 @Entity
 @Table(name = "pujos")
+@SecondaryTable(name = "pujosDatos",
+        pkJoinColumns = @PrimaryKeyJoinColumn(name = "pujo"))
 @Getter @Setter @NoArgsConstructor
 public class Pujo {
 
@@ -21,5 +27,8 @@ public class Pujo {
     private Integer item;
     private BigDecimal importe;
     private String ganador;       // si / no
+
+    // --- satelite pujosDatos ---
+    @Column(table = "pujosDatos")
     private LocalDateTime fechaHora;
 }
