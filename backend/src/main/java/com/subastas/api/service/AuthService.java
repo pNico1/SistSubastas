@@ -28,6 +28,7 @@ public class AuthService {
     private final EmpleadoRepository empleadoRepo;
     private final PaisRepository paisRepo;
     private final TokenRepository tokenRepo;
+    private final RegistroPendienteRepository pendingRepo;
     private final PasswordEncoder encoder;
     private final JwtService jwtService;
     private final EmailService emailService;
@@ -35,6 +36,7 @@ public class AuthService {
     public AuthService(UsuarioRepository usuarioRepo, PersonaRepository personaRepo,
                        ClienteRepository clienteRepo, EmpleadoRepository empleadoRepo,
                        PaisRepository paisRepo, TokenRepository tokenRepo,
+                       RegistroPendienteRepository pendingRepo,
                        PasswordEncoder encoder, JwtService jwtService, EmailService emailService) {
         this.usuarioRepo = usuarioRepo;
         this.personaRepo = personaRepo;
@@ -42,12 +44,19 @@ public class AuthService {
         this.empleadoRepo = empleadoRepo;
         this.paisRepo = paisRepo;
         this.tokenRepo = tokenRepo;
+        this.pendingRepo = pendingRepo;
         this.encoder = encoder;
         this.jwtService = jwtService;
         this.emailService = emailService;
     }
 
-    /** Etapa 1: el postor ingresa sus datos. Queda pendiente de verificacion. */
+    /**
+     * Etapa 1: el postor ingresa sus datos. NO se crea nada en personas/usuarios/
+     * clientes todavia: los datos quedan en 'registrosPendientes' hasta que el
+     * usuario verifique el codigo. Asi, si abandona el registro antes de verificar
+     * (p.ej. cierra la app), no queda ninguna fila en las tablas reales y puede
+     * volver a registrarse con el mismo email/documento.
+     */
     @Transactional
     public RegisterResponse register(RegisterRequest req) {
         if (usuarioRepo.existsByEmail(req.email())) {
@@ -60,27 +69,82 @@ public class AuthService {
             throw ApiException.unprocessable(ErrorCodes.INVALID_COUNTRY, "El pais de origen no existe");
         }
 
-        Persona persona = new Persona();
-        persona.setNombre(req.nombre());
-        persona.setApellido(req.apellido());
-        persona.setDocumento(req.documento());
-        persona.setDireccion(req.domicilio());
-        persona.setEstado("activo");
-        persona.setFotoDocFrente(decodeFotoOrNull(req.fotoDocFrente()));   // opcional (puede subirla luego)
-        persona.setFotoDocDorso(decodeFotoOrNull(req.fotoDocDorso()));
-        persona = personaRepo.save(persona);
-
-        // El usuario NO elige clave: se le genera una provisoria que usara una vez
-        // aprobada la verificacion. La cuenta queda pendiente.
+        // El usuario NO elige clave: se le genera una provisoria que vera en la
+        // pantalla de exito y usara una vez aprobada la verificacion del empleado.
         String passwordProvisoria = generarPasswordProvisoria();
-        Usuario usuario = new Usuario();
-        usuario.setPersona(persona.getIdentificador());
-        usuario.setEmail(req.email());
-        usuario.setPasswordHash(encoder.encode(passwordProvisoria));
-        usuario.setEstadoRegistro("pending_verification");
-        usuario.setEmailVerificado("no");
-        usuario.setFechaCreacion(LocalDateTime.now());
-        usuario = usuarioRepo.save(usuario);
+        String codigo = generarCodigo();
+
+        // Si ya habia un registro pendiente con este email (abandono previo), se
+        // reutiliza la misma fila (upsert) para no chocar con el UNIQUE de email.
+        RegistroPendiente pend = pendingRepo.findByEmail(req.email()).orElseGet(RegistroPendiente::new);
+        pend.setEmail(req.email());
+        pend.setDocumento(req.documento());
+        pend.setNombre(req.nombre());
+        pend.setApellido(req.apellido());
+        pend.setDireccion(req.domicilio());
+        pend.setPaisOrigen(req.paisOrigenId());
+        pend.setFotoDocFrente(decodeFotoOrNull(req.fotoDocFrente()));   // opcional (puede subirla luego)
+        pend.setFotoDocDorso(decodeFotoOrNull(req.fotoDocDorso()));
+        pend.setPasswordHash(encoder.encode(passwordProvisoria));       // se guarda hasheada
+        pend.setCodigo(codigo);                                         // efimero, 15 min
+        pend.setExpira(LocalDateTime.now().plusMinutes(15));
+        pend.setFechaCreacion(LocalDateTime.now());
+        pend = pendingRepo.save(pend);
+
+        emailService.enviarCodigoVerificacion(req.email(), req.nombre(), codigo);
+
+        return new RegisterResponse(
+                "pending-" + pend.getId(),
+                "pending_verification",
+                "Te enviamos un codigo de verificacion a tu email.",
+                passwordProvisoria,
+                emailService.isDevMode() ? codigo : null   // en modo dev se devuelve para poder probar
+        );
+    }
+
+    /**
+     * Verifica el codigo que el usuario recibio por mail. RECIEN ACA se crean las
+     * filas reales (persona + cliente + usuario) a partir del registro pendiente,
+     * y se borra el pendiente.
+     */
+    @Transactional
+    public MessageResponse verifyEmail(VerifyEmailRequest req) {
+        RegistroPendiente pend = pendingRepo.findByEmail(req.email()).orElse(null);
+        if (pend == null) {
+            // Idempotencia: si ya existe un usuario verificado con ese email, esta ok.
+            boolean yaVerificado = usuarioRepo.findByEmail(req.email())
+                    .map(u -> "si".equals(u.getEmailVerificado()))
+                    .orElse(false);
+            if (yaVerificado) {
+                return MessageResponse.of("El email ya estaba verificado");
+            }
+            throw ApiException.unprocessable(ErrorCodes.CODE_INVALID, "Codigo invalido");
+        }
+        if (!pend.getCodigo().equals(req.codigo())) {
+            throw ApiException.unprocessable(ErrorCodes.CODE_INVALID, "Codigo invalido");
+        }
+        if (pend.getExpira().isBefore(LocalDateTime.now())) {
+            throw new ApiException(HttpStatus.GONE, ErrorCodes.CODE_EXPIRED, "El codigo expiro, pedi uno nuevo");
+        }
+
+        // Re-chequeo de unicidad: alguien pudo haber tomado el email/documento
+        // mientras este registro estaba pendiente.
+        if (usuarioRepo.existsByEmail(pend.getEmail())) {
+            throw ApiException.conflict(ErrorCodes.EMAIL_ALREADY_REGISTERED, "El email ya esta registrado");
+        }
+        if (personaRepo.existsByDocumento(pend.getDocumento())) {
+            throw ApiException.conflict(ErrorCodes.DOCUMENT_ALREADY_REGISTERED, "El documento ya esta registrado");
+        }
+
+        Persona persona = new Persona();
+        persona.setNombre(pend.getNombre());
+        persona.setApellido(pend.getApellido());
+        persona.setDocumento(pend.getDocumento());
+        persona.setDireccion(pend.getDireccion());
+        persona.setEstado("activo");
+        persona.setFotoDocFrente(pend.getFotoDocFrente());
+        persona.setFotoDocDorso(pend.getFotoDocDorso());
+        persona = personaRepo.save(persona);
 
         // Cliente provisorio (la categoria/admision la define la verificacion del empleado).
         Integer verificador = empleadoRepo.findAll().stream()
@@ -89,81 +153,43 @@ public class AuthService {
                         ErrorCodes.INTERNAL_ERROR, "No hay empleados para asignar como verificador"));
         Cliente cliente = new Cliente();
         cliente.setIdentificador(persona.getIdentificador());
-        cliente.setNumeroPais(req.paisOrigenId());
+        cliente.setNumeroPais(pend.getPaisOrigen());
         cliente.setAdmitido("no");
         cliente.setCategoria("comun");
         cliente.setVerificador(verificador);
         clienteRepo.save(cliente);
 
-        // Genera y envia el codigo de verificacion de email.
-        String codigo = emitirCodigoVerificacion(usuario, persona.getNombre());
-
-        return new RegisterResponse(
-                String.valueOf(usuario.getId()),
-                "pending_verification",
-                "Te enviamos un codigo de verificacion a tu email.",
-                passwordProvisoria,
-                emailService.isDevMode() ? codigo : null   // en modo dev se devuelve para poder probar
-        );
-    }
-
-    /** Verifica el codigo que el usuario recibio por mail. */
-    @Transactional
-    public MessageResponse verifyEmail(VerifyEmailRequest req) {
-        Usuario usuario = usuarioRepo.findByEmail(req.email())
-                .orElseThrow(() -> ApiException.unprocessable(ErrorCodes.CODE_INVALID, "Codigo invalido"));
-
-        if ("si".equals(usuario.getEmailVerificado())) {
-            return MessageResponse.of("El email ya estaba verificado");
-        }
-
-        Token token = tokenRepo.findByValorAndTipo(claveToken(usuario, req.codigo()), "verification")
-                .orElseThrow(() -> ApiException.unprocessable(ErrorCodes.CODE_INVALID, "Codigo invalido"));
-        if ("si".equals(token.getUsado())) {
-            throw ApiException.unprocessable(ErrorCodes.CODE_INVALID, "Codigo invalido");
-        }
-        if (token.getExpira().isBefore(LocalDateTime.now())) {
-            throw new ApiException(HttpStatus.GONE, ErrorCodes.CODE_EXPIRED, "El codigo expiro, pedi uno nuevo");
-        }
-
-        token.setUsado("si");
-        tokenRepo.save(token);
+        Usuario usuario = new Usuario();
+        usuario.setPersona(persona.getIdentificador());
+        usuario.setEmail(pend.getEmail());
+        usuario.setPasswordHash(pend.getPasswordHash());   // hash ya calculado en register()
+        usuario.setEstadoRegistro("pending_verification"); // el admin lo aprueba despues
         usuario.setEmailVerificado("si");
+        usuario.setFechaCreacion(LocalDateTime.now());
         usuarioRepo.save(usuario);
+
+        pendingRepo.delete(pend);
         return MessageResponse.of("Email verificado correctamente");
     }
 
     /** Reenvia un nuevo codigo de verificacion. Respuesta generica (no revela si el email existe). */
     @Transactional
     public MessageResponse resendCode(ResendCodeRequest req) {
-        usuarioRepo.findByEmail(req.email()).ifPresent(u -> {
-            if (!"si".equals(u.getEmailVerificado())) {
-                emitirCodigoVerificacion(u, null);
-            }
+        pendingRepo.findByEmail(req.email()).ifPresent(pend -> {
+            String codigo = generarCodigo();
+            pend.setCodigo(codigo);
+            pend.setExpira(LocalDateTime.now().plusMinutes(15));
+            pendingRepo.save(pend);
+            emailService.enviarCodigoVerificacion(pend.getEmail(), pend.getNombre(), codigo);
         });
         return MessageResponse.of("Si el email esta registrado, te enviamos un nuevo codigo.");
     }
 
-    // ---- helpers de verificacion de email ----
-
-    /** Crea/renueva el codigo de verificacion del usuario y lo envia por mail. Devuelve el codigo. */
-    private String emitirCodigoVerificacion(Usuario usuario, String nombre) {
-        tokenRepo.deleteByUsuarioAndTipo(usuario.getId(), "verification"); // invalida codigos previos
-        String codigo = generarCodigo();
-        Token token = new Token();
-        token.setUsuario(usuario.getId());
-        token.setValor(claveToken(usuario, codigo));
-        token.setTipo("verification");
-        token.setExpira(LocalDateTime.now().plusMinutes(15));
-        token.setUsado("no");
-        tokenRepo.save(token);
-        emailService.enviarCodigoVerificacion(usuario.getEmail(), nombre, codigo);
-        return codigo;
-    }
+    // ---- helpers de tokens ----
 
     /** El valor del token combina el id de usuario con el codigo para garantizar unicidad. */
-    private String claveToken(Usuario usuario, String codigo) {
-        return usuario.getId() + ":" + codigo;
+    private String valorToken(Integer usuarioId, String codigo) {
+        return usuarioId + ":" + codigo;
     }
 
     private String generarCodigo() {
@@ -282,6 +308,63 @@ public class AuthService {
             t.setUsado("si");
             tokenRepo.save(t);
         });
+    }
+
+    /**
+     * Inicia la recuperacion de contrasenia: si existe un usuario con ese email,
+     * genera un codigo (token tipo 'reset', 15 min) y lo manda por mail. La
+     * respuesta es generica para no revelar si el email existe (anti-enumeracion).
+     */
+    @Transactional
+    public ForgotPasswordResponse forgotPassword(ForgotPasswordRequest req) {
+        String[] devCode = { null };
+        usuarioRepo.findByEmail(req.email()).ifPresent(u -> {
+            tokenRepo.deleteByUsuarioAndTipo(u.getId(), "reset"); // invalida codigos previos
+            String codigo = generarCodigo();
+            Token token = new Token();
+            token.setUsuario(u.getId());
+            token.setValor(valorToken(u.getId(), codigo));
+            token.setTipo("reset");
+            token.setExpira(LocalDateTime.now().plusMinutes(15));
+            token.setUsado("no");
+            tokenRepo.save(token);
+            emailService.enviarCodigoReset(u.getEmail(), codigo);
+            if (emailService.isDevMode()) devCode[0] = codigo;
+        });
+        return new ForgotPasswordResponse(
+                "Si el email esta registrado, te enviamos un codigo para restablecer la contrasenia.",
+                devCode[0]);
+    }
+
+    /** Completa la recuperacion: valida el codigo y setea la nueva contrasenia. */
+    @Transactional
+    public MessageResponse resetPassword(ResetPasswordRequest req) {
+        if (!req.password().equals(req.passwordConfirmation())) {
+            throw ApiException.unprocessable(ErrorCodes.PASSWORD_MISMATCH, "Las contrasenias no coinciden");
+        }
+        if (!isStrong(req.password())) {
+            throw ApiException.unprocessable(ErrorCodes.WEAK_PASSWORD,
+                    "La contrasenia debe tener al menos 8 caracteres, una letra y un numero");
+        }
+
+        // Respuesta generica si el email no existe (mismo codigo que codigo invalido).
+        Usuario usuario = usuarioRepo.findByEmail(req.email())
+                .orElseThrow(() -> ApiException.unprocessable(ErrorCodes.CODE_INVALID, "Codigo invalido"));
+
+        Token token = tokenRepo.findByValorAndTipo(valorToken(usuario.getId(), req.codigo()), "reset")
+                .orElseThrow(() -> ApiException.unprocessable(ErrorCodes.CODE_INVALID, "Codigo invalido"));
+        if ("si".equals(token.getUsado())) {
+            throw ApiException.unprocessable(ErrorCodes.CODE_INVALID, "Codigo invalido");
+        }
+        if (token.getExpira().isBefore(LocalDateTime.now())) {
+            throw new ApiException(HttpStatus.GONE, ErrorCodes.CODE_EXPIRED, "El codigo expiro, pedi uno nuevo");
+        }
+
+        token.setUsado("si");
+        tokenRepo.save(token);
+        usuario.setPasswordHash(encoder.encode(req.password()));
+        usuarioRepo.save(usuario);
+        return MessageResponse.of("Contrasenia actualizada. Ya podes iniciar sesion.");
     }
 
     // ---- helpers ----

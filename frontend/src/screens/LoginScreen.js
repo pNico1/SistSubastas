@@ -229,8 +229,11 @@ export default function LoginScreen({ navigation }) {
             <Text style={styles.errorText}>{errors.password}</Text>
           ) : null}
 
-          {/* Recuperar contrasena: pendiente de implementar (entrega parcial) */}
-          <TouchableOpacity onPress={() => {}} style={styles.forgotLink} activeOpacity={0.6}>
+          <TouchableOpacity
+            onPress={() => navigation.navigate('ForgotPassword', { email: email.trim() })}
+            style={styles.forgotLink}
+            activeOpacity={0.6}
+          >
             <Text style={styles.forgotText}>¿Olvidaste tu contraseña?</Text>
           </TouchableOpacity>
 

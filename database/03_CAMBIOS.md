@@ -51,8 +51,33 @@ Para cerrar una subasta el backend escribe `'carrada'`.
 - **`facturas`** — factura de compra.
 - **`multas`** — multa del 10% por incumplimiento de pago.
 - **`pagos`** — pago de adquisiciones y de multas.
+- **`registrosPendientes`** — registros de postores que aún no verificaron su
+  email. Evita el dead-end de abandonar el registro antes de poner el código
+  (ver más abajo). No tiene FK a tablas originales: la persona todavía no existe.
 
-Total: 16 originales + 6 satélites + 9 nuevas = **31 tablas**.
+Total: 16 originales + 6 satélites + 10 nuevas = **32 tablas**.
+
+
+Antes, `register()` creaba `personas` + `usuarios` + `clientes` y recién después
+mandaba el código. Si el usuario cerraba la app sin verificar, quedaba trabado:
+el email y el documento ya estaban tomados y la clave provisoria (que se muestra
+recién en la pantalla de éxito) nunca se llegaba a ver.
+
+Ahora `register()` **no escribe en ninguna tabla original**: guarda todo en
+`registrosPendientes` (datos + clave provisoria hasheada + código en claro, 15
+min de expiración) y devuelve la clave provisoria. Las filas reales
+(`personas`/`personasDatos`, `usuarios`, `clientes`) se crean **solo cuando el
+usuario verifica el código** (`verify-email`), y ahí se borra el pendiente. Si
+abandona, no queda nada y puede volver a registrarse (el pendiente del mismo
+email se sobrescribe). El código de verificación ya no usa la tabla `tokens`
+(que requería un `usuario` existente); vive en `registrosPendientes`.
+
+## Recuperación de contraseña
+
+Se agregó el flujo `forgot-password` / `reset-password` (endpoints
+`/api/auth/forgot-password` y `/api/auth/reset-password`) usando la tabla
+`tokens` con `tipo = 'reset'` (ya contemplada en el CHECK). Cubre el caso de
+perder la clave provisoria. No requiere cambios de esquema.
 
 ## Cómo cargar la base
 

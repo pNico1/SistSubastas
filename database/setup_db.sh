@@ -51,7 +51,7 @@ SQL
 echo ">> 4/4 Verificando..."
 TABLAS=$($CLI -N -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='subastas';")
 USUARIOS=$($CLI -N -e "SELECT GROUP_CONCAT(email SEPARATOR ', ') FROM subastas.usuarios;")
-echo "   Tablas creadas: $TABLAS (esperado: 31)"
+echo "   Tablas creadas: $TABLAS (esperado: 32)"
 echo "   Usuarios demo : $USUARIOS"
 echo ""
 echo "LISTO. El backend se conecta con:"

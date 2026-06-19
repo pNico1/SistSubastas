@@ -401,6 +401,30 @@ CREATE TABLE pagos (
     CONSTRAINT fk_pagos_mediosPago FOREIGN KEY (medioPago)   REFERENCES mediosPago (id)
 );
 
+-- registrosPendientes: registros de postores que AUN NO verificaron su email.
+--  No se crean filas en personas/usuarios/clientes hasta que el usuario ingresa
+--  el codigo. Asi, si abandona el registro antes de verificar, no queda nada en
+--  las tablas reales y puede volver a registrarse con el mismo email/documento.
+--  NO tiene FK a tablas originales (la persona todavia no existe). El codigo se
+--  guarda en claro (es efimero, 15 min); la clave provisoria se guarda HASHEADA.
+CREATE TABLE registrosPendientes (
+    id            INT          NOT NULL AUTO_INCREMENT,
+    email         VARCHAR(150) NOT NULL,
+    documento     VARCHAR(20)  NOT NULL,
+    nombre        VARCHAR(150) NOT NULL,
+    apellido      VARCHAR(150) NULL,
+    direccion     VARCHAR(250) NULL,
+    paisOrigen    INT          NOT NULL,
+    fotoDocFrente LONGBLOB     NULL,
+    fotoDocDorso  LONGBLOB     NULL,
+    passwordHash  VARCHAR(100) NOT NULL,
+    codigo        VARCHAR(6)   NOT NULL,
+    expira        DATETIME     NOT NULL,
+    fechaCreacion DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT pk_registrosPendientes PRIMARY KEY (id),
+    CONSTRAINT uq_registrosPendientes_email UNIQUE (email)
+);
+
 -- ====================  TRIGGERS: regla de chkFecha [T3]  ====================
 --  Original (T-SQL): check (fecha > dateAdd(dd, 10, getdate()))
 --  "las subastas tiene al menos 10 dias de anticipacion al momento de crearlas"

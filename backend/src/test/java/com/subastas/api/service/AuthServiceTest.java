@@ -4,11 +4,14 @@ import com.subastas.api.common.ApiException;
 import com.subastas.api.common.ErrorCodes;
 import com.subastas.api.domain.Empleado;
 import com.subastas.api.domain.Persona;
+import com.subastas.api.domain.RegistroPendiente;
 import com.subastas.api.domain.Token;
 import com.subastas.api.domain.Usuario;
+import com.subastas.api.dto.ForgotPasswordRequest;
 import com.subastas.api.dto.LoginRequest;
 import com.subastas.api.dto.RegisterRequest;
 import com.subastas.api.dto.RegisterResponse;
+import com.subastas.api.dto.ResetPasswordRequest;
 import com.subastas.api.dto.VerifyEmailRequest;
 import com.subastas.api.repository.*;
 import com.subastas.api.security.JwtService;
@@ -28,11 +31,14 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * Tests de errores de LOGIN y REGISTRO sobre el codigo real de AuthService
- * (repositorios mockeados). Correr con: mvn test
+ * Tests del codigo real de AuthService (repositorios mockeados). Cubren el nuevo
+ * flujo de registro en dos fases (staging en registrosPendientes), login,
+ * verificacion de email y recuperacion de contrasenia. Correr con: mvn test
  */
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
@@ -44,6 +50,7 @@ class AuthServiceTest {
     @Mock EmpleadoRepository empleadoRepo;
     @Mock PaisRepository paisRepo;
     @Mock TokenRepository tokenRepo;
+    @Mock RegistroPendienteRepository pendingRepo;
     @Mock PasswordEncoder encoder;
     @Mock JwtService jwtService;
     @Mock EmailService emailService;
@@ -53,6 +60,21 @@ class AuthServiceTest {
     private RegisterRequest registro() {
         return new RegisterRequest("Juan", "Perez", "30123456", "Calle 1",
                 1, "juan@email.com", null, null);
+    }
+
+    private RegistroPendiente pendiente(String codigo, LocalDateTime expira) {
+        RegistroPendiente p = new RegistroPendiente();
+        p.setId(7);
+        p.setEmail("juan@email.com");
+        p.setDocumento("30123456");
+        p.setNombre("Juan");
+        p.setApellido("Perez");
+        p.setDireccion("Calle 1");
+        p.setPaisOrigen(1);
+        p.setPasswordHash("hash");
+        p.setCodigo(codigo);
+        p.setExpira(expira);
+        return p;
     }
 
     // ----------------------------- REGISTER -----------------------------
@@ -92,24 +114,26 @@ class AuthServiceTest {
     }
 
     @Test
-    void register_ok_devuelveClaveProvisoriaYPendiente() {
+    void register_ok_guardaPendienteYNoTocaTablasReales() {
         when(usuarioRepo.existsByEmail(any())).thenReturn(false);
         when(personaRepo.existsByDocumento(any())).thenReturn(false);
         when(paisRepo.existsById(1)).thenReturn(true);
-        when(personaRepo.save(any())).thenAnswer(inv -> { Persona p = inv.getArgument(0); p.setIdentificador(5); return p; });
-        when(usuarioRepo.save(any())).thenAnswer(inv -> { Usuario u = inv.getArgument(0); u.setId(10); return u; });
-        Empleado emp = new Empleado(); emp.setIdentificador(1);
-        when(empleadoRepo.findAll()).thenReturn(List.of(emp));
+        when(pendingRepo.findByEmail(any())).thenReturn(Optional.empty());
+        when(pendingRepo.save(any())).thenAnswer(inv -> { RegistroPendiente p = inv.getArgument(0); p.setId(7); return p; });
         when(encoder.encode(any())).thenReturn("hash");
         when(emailService.isDevMode()).thenReturn(true);
-        when(tokenRepo.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
         RegisterResponse res = authService.register(registro());
 
         assertThat(res.status()).isEqualTo("pending_verification");
         assertThat(res.provisionalPassword()).startsWith("BIDSTER-");
-        assertThat(res.devCode()).isNotNull();                 // en modo dev se devuelve
-        assertThat(res.devCode()).matches("\\d{6}");           // codigo de 6 digitos
+        assertThat(res.devCode()).matches("\\d{6}");           // codigo de 6 digitos en modo dev
+
+        // El fix: NO se crea nada en personas/usuarios/clientes hasta verificar.
+        verify(personaRepo, never()).save(any());
+        verify(usuarioRepo, never()).save(any());
+        verify(clienteRepo, never()).save(any());
+        verify(pendingRepo).save(any());
     }
 
     // ------------------------------ LOGIN -------------------------------
@@ -152,10 +176,30 @@ class AuthServiceTest {
     // ------------------------ VERIFICACION DE EMAIL ----------------------
 
     @Test
-    void verifyEmail_codigoInexistente_lanzaCodeInvalid() {
-        Usuario u = new Usuario(); u.setId(10); u.setEmailVerificado("no");
+    void verifyEmail_sinPendiente_lanzaCodeInvalid() {
+        when(pendingRepo.findByEmail("juan@email.com")).thenReturn(Optional.empty());
+        when(usuarioRepo.findByEmail("juan@email.com")).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> authService.verifyEmail(new VerifyEmailRequest("juan@email.com", "000000")))
+                .isInstanceOfSatisfying(ApiException.class, ex ->
+                        assertThat(ex.getCode()).isEqualTo(ErrorCodes.CODE_INVALID));
+    }
+
+    @Test
+    void verifyEmail_yaVerificado_esIdempotente() {
+        Usuario u = new Usuario(); u.setId(10); u.setEmailVerificado("si");
+        when(pendingRepo.findByEmail("juan@email.com")).thenReturn(Optional.empty());
         when(usuarioRepo.findByEmail("juan@email.com")).thenReturn(Optional.of(u));
-        when(tokenRepo.findByValorAndTipo("10:000000", "verification")).thenReturn(Optional.empty());
+
+        var res = authService.verifyEmail(new VerifyEmailRequest("juan@email.com", "123456"));
+
+        assertThat(res.message()).contains("ya estaba verificado");
+    }
+
+    @Test
+    void verifyEmail_codigoIncorrecto_lanzaCodeInvalid() {
+        when(pendingRepo.findByEmail("juan@email.com"))
+                .thenReturn(Optional.of(pendiente("123456", LocalDateTime.now().plusMinutes(10))));
 
         assertThatThrownBy(() -> authService.verifyEmail(new VerifyEmailRequest("juan@email.com", "000000")))
                 .isInstanceOfSatisfying(ApiException.class, ex ->
@@ -164,11 +208,8 @@ class AuthServiceTest {
 
     @Test
     void verifyEmail_codigoExpirado_lanzaCodeExpired() {
-        Usuario u = new Usuario(); u.setId(10); u.setEmailVerificado("no");
-        Token t = new Token(); t.setUsuario(10); t.setValor("10:123456"); t.setTipo("verification");
-        t.setUsado("no"); t.setExpira(LocalDateTime.now().minusMinutes(1));
-        when(usuarioRepo.findByEmail("juan@email.com")).thenReturn(Optional.of(u));
-        when(tokenRepo.findByValorAndTipo("10:123456", "verification")).thenReturn(Optional.of(t));
+        when(pendingRepo.findByEmail("juan@email.com"))
+                .thenReturn(Optional.of(pendiente("123456", LocalDateTime.now().minusMinutes(1))));
 
         assertThatThrownBy(() -> authService.verifyEmail(new VerifyEmailRequest("juan@email.com", "123456")))
                 .isInstanceOfSatisfying(ApiException.class, ex -> {
@@ -178,16 +219,84 @@ class AuthServiceTest {
     }
 
     @Test
-    void verifyEmail_codigoCorrecto_marcaVerificado() {
-        Usuario u = new Usuario(); u.setId(10); u.setEmailVerificado("no");
-        Token t = new Token(); t.setUsuario(10); t.setValor("10:123456"); t.setTipo("verification");
+    void verifyEmail_codigoCorrecto_creaUsuarioYBorraPendiente() {
+        RegistroPendiente pend = pendiente("123456", LocalDateTime.now().plusMinutes(10));
+        when(pendingRepo.findByEmail("juan@email.com")).thenReturn(Optional.of(pend));
+        when(usuarioRepo.existsByEmail("juan@email.com")).thenReturn(false);
+        when(personaRepo.existsByDocumento("30123456")).thenReturn(false);
+        when(personaRepo.save(any())).thenAnswer(inv -> { Persona p = inv.getArgument(0); p.setIdentificador(5); return p; });
+        Empleado emp = new Empleado(); emp.setIdentificador(1);
+        when(empleadoRepo.findAll()).thenReturn(List.of(emp));
+        when(usuarioRepo.save(any())).thenAnswer(inv -> { Usuario u = inv.getArgument(0); u.setId(10); return u; });
+
+        var res = authService.verifyEmail(new VerifyEmailRequest("juan@email.com", "123456"));
+
+        assertThat(res.message()).contains("verificado correctamente");
+        // se crearon las filas reales y se borro el pendiente
+        verify(personaRepo).save(any());
+        verify(clienteRepo).save(any());
+        verify(usuarioRepo).save(any());
+        verify(pendingRepo).delete(pend);
+    }
+
+    // ----------------------- RECUPERACION DE CLAVE -----------------------
+
+    @Test
+    void forgotPassword_emailInexistente_respuestaGenericaSinToken() {
+        when(usuarioRepo.findByEmail("nadie@email.com")).thenReturn(Optional.empty());
+
+        var res = authService.forgotPassword(new ForgotPasswordRequest("nadie@email.com"));
+
+        assertThat(res.message()).isNotBlank();
+        assertThat(res.devCode()).isNull();
+        verify(tokenRepo, never()).save(any());
+    }
+
+    @Test
+    void forgotPassword_emailExistente_creaTokenReset() {
+        Usuario u = new Usuario(); u.setId(10); u.setEmail("juan@email.com");
+        when(usuarioRepo.findByEmail("juan@email.com")).thenReturn(Optional.of(u));
+        when(emailService.isDevMode()).thenReturn(true);
+
+        var res = authService.forgotPassword(new ForgotPasswordRequest("juan@email.com"));
+
+        assertThat(res.devCode()).matches("\\d{6}");
+        verify(tokenRepo).deleteByUsuarioAndTipo(10, "reset");
+        verify(tokenRepo).save(any());
+    }
+
+    @Test
+    void resetPassword_passwordsNoCoinciden_lanzaMismatch() {
+        assertThatThrownBy(() -> authService.resetPassword(
+                new ResetPasswordRequest("juan@email.com", "123456", "Password123!", "Otra123!")))
+                .isInstanceOfSatisfying(ApiException.class, ex ->
+                        assertThat(ex.getCode()).isEqualTo(ErrorCodes.PASSWORD_MISMATCH));
+    }
+
+    @Test
+    void resetPassword_codigoInvalido_lanzaCodeInvalid() {
+        Usuario u = new Usuario(); u.setId(10); u.setEmail("juan@email.com");
+        when(usuarioRepo.findByEmail("juan@email.com")).thenReturn(Optional.of(u));
+        when(tokenRepo.findByValorAndTipo("10:000000", "reset")).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> authService.resetPassword(
+                new ResetPasswordRequest("juan@email.com", "000000", "Password123!", "Password123!")))
+                .isInstanceOfSatisfying(ApiException.class, ex ->
+                        assertThat(ex.getCode()).isEqualTo(ErrorCodes.CODE_INVALID));
+    }
+
+    @Test
+    void resetPassword_ok_actualizaHash() {
+        Usuario u = new Usuario(); u.setId(10); u.setEmail("juan@email.com"); u.setPasswordHash("viejo");
+        Token t = new Token(); t.setUsuario(10); t.setValor("10:123456"); t.setTipo("reset");
         t.setUsado("no"); t.setExpira(LocalDateTime.now().plusMinutes(10));
         when(usuarioRepo.findByEmail("juan@email.com")).thenReturn(Optional.of(u));
-        when(tokenRepo.findByValorAndTipo("10:123456", "verification")).thenReturn(Optional.of(t));
+        when(tokenRepo.findByValorAndTipo("10:123456", "reset")).thenReturn(Optional.of(t));
+        when(encoder.encode("Password123!")).thenReturn("nuevoHash");
 
-        authService.verifyEmail(new VerifyEmailRequest("juan@email.com", "123456"));
+        authService.resetPassword(new ResetPasswordRequest("juan@email.com", "123456", "Password123!", "Password123!"));
 
-        assertThat(u.getEmailVerificado()).isEqualTo("si");
+        assertThat(u.getPasswordHash()).isEqualTo("nuevoHash");
         assertThat(t.getUsado()).isEqualTo("si");
     }
 }

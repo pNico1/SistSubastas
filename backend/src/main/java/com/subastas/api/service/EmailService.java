@@ -74,6 +74,38 @@ public class EmailService {
         }
     }
 
+    public void enviarCodigoReset(String toEmail, String codigo) {
+        // El codigo SIEMPRE se loguea en consola (util para desarrollo/demo), se mande o no el email real.
+        log.warn("==================== CODIGO DE RECUPERACION ====================");
+        log.warn(" Para: {}  ->  CODIGO RESET: {}", toEmail, codigo);
+        log.warn("===============================================================");
+
+        String html = """
+                <div style="font-family:Arial,sans-serif;max-width:480px;margin:auto">
+                  <h2 style="color:#0B64ED">Bidster</h2>
+                  <p>Recibimos un pedido para restablecer tu contrasenia.</p>
+                  <p>Tu codigo es:</p>
+                  <p style="font-size:32px;font-weight:bold;letter-spacing:6px;color:#2B2A51">%s</p>
+                  <p style="color:#8B88A8">El codigo vence en 15 minutos. Si no pediste esto, ignora este mail.</p>
+                </div>
+                """.formatted(codigo);
+
+        if (isDevMode()) {
+            // Modo dev: no se manda email real; el codigo ya quedo logueado arriba.
+            return;
+        }
+
+        try {
+            if (isMailtrap()) {
+                enviarConMailtrap(toEmail, null, "Restablece tu contrasenia - Bidster", html, "password_reset");
+            } else if (isResend()) {
+                enviarConResend(toEmail, "Restablece tu contrasenia - Bidster", html);
+            }
+        } catch (Exception e) {
+            log.error("No se pudo enviar el email de reset a {}: {}", toEmail, e.getMessage());
+        }
+    }
+
     public void enviarCuentaVerificada(String toEmail, String nombre, String categoria) {
         String categoriaTexto = categoria == null || categoria.isBlank() ? "asignada" : categoria;
         String html = """

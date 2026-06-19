@@ -12,6 +12,8 @@ import LoginScreen from './src/screens/LoginScreen';
 import RegisterScreen from './src/screens/RegisterScreen';
 import VerifyEmailScreen from './src/screens/VerifyEmailScreen';
 import RegisterSuccessScreen from './src/screens/RegisterSuccessScreen';
+import ForgotPasswordScreen from './src/screens/ForgotPasswordScreen';
+import ResetPasswordScreen from './src/screens/ResetPasswordScreen';
 import AccountVerifiedScreen from './src/screens/AccountVerifiedScreen';
 import RegisterCompleteScreen from './src/screens/RegisterCompleteScreen';
 import PaymentMethodsScreen from './src/screens/PaymentMethodsScreen';
@@ -108,6 +110,16 @@ function RootNavigator() {
             <Stack.Screen
               name="RegisterSuccess"
               component={RegisterSuccessScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="ForgotPassword"
+              component={ForgotPasswordScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="ResetPassword"
+              component={ResetPasswordScreen}
               options={{ headerShown: false }}
             />
           </>
