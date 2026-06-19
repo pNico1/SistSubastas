@@ -58,19 +58,26 @@ Para cerrar una subasta el backend escribe `'carrada'`.
 Total: 16 originales + 6 satélites + 10 nuevas = **32 tablas**.
 
 
+## Registro en dos fases (staging + binding por token)
+
 Antes, `register()` creaba `personas` + `usuarios` + `clientes` y recién después
 mandaba el código. Si el usuario cerraba la app sin verificar, quedaba trabado:
 el email y el documento ya estaban tomados y la clave provisoria (que se muestra
 recién en la pantalla de éxito) nunca se llegaba a ver.
 
-Ahora `register()` **no escribe en ninguna tabla original**: guarda todo en
+Ahora `register()` **no escribe en ninguna tabla original**: inserta una fila en
 `registrosPendientes` (datos + clave provisoria hasheada + código en claro, 15
-min de expiración) y devuelve la clave provisoria. Las filas reales
-(`personas`/`personasDatos`, `usuarios`, `clientes`) se crean **solo cuando el
-usuario verifica el código** (`verify-email`), y ahí se borra el pendiente. Si
-abandona, no queda nada y puede volver a registrarse (el pendiente del mismo
-email se sobrescribe). El código de verificación ya no usa la tabla `tokens`
-(que requería un `usuario` existente); vive en `registrosPendientes`.
+min de expiración) y devuelve un `registrationId` (un `token` opaco) junto con la
+clave provisoria. Las filas reales (`personas`/`personasDatos`, `usuarios`,
+`clientes`) se crean **solo cuando el usuario verifica el código**
+(`verify-email`), y ahí se borra el pendiente.
+
+La verificación y el reenvío se atan al **`token`**, no al email: cada
+registración es su propia fila. Así, si dos personas usan el mismo email (p. ej.
+una tipea mal su dirección), cada una solo puede completar su propia registración
+con el código que le corresponde, sin que se pisen ni se mezclen los datos. El
+código de verificación ya no usa la tabla `tokens` (que requería un `usuario`
+existente); vive en `registrosPendientes`.
 
 ## Recuperación de contraseña
 

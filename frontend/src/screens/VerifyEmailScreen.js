@@ -21,7 +21,7 @@ const palette = {
 
 // Verificacion de email por codigo de 6 digitos (enviado por mail).
 export default function VerifyEmailScreen({ route, navigation }) {
-  const { email, provisionalPassword, devCode } = route?.params || {};
+  const { registrationId, email, provisionalPassword, devCode } = route?.params || {};
 
   const [codigo, setCodigo] = useState(devCode || '');
   const [error, setError] = useState(null);
@@ -37,7 +37,7 @@ export default function VerifyEmailScreen({ route, navigation }) {
     }
     setLoading(true);
     try {
-      await authApi.verifyEmail(email, codigo);
+      await authApi.verifyEmail(registrationId, codigo);
       navigation.replace('RegisterSuccess', { provisionalPassword, email });
     } catch (err) {
       if (err.code === 'CODE_EXPIRED') setError('El codigo expiro. Pedi uno nuevo.');
@@ -53,7 +53,7 @@ export default function VerifyEmailScreen({ route, navigation }) {
     setError(null);
     setResending(true);
     try {
-      await authApi.resendCode(email);
+      await authApi.resendCode(registrationId);
       setResentMsg('Te enviamos un nuevo codigo.');
     } catch (err) {
       setError(err.message || 'No se pudo reenviar el codigo');

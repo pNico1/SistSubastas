@@ -74,9 +74,12 @@ public class AuthService {
         String passwordProvisoria = generarPasswordProvisoria();
         String codigo = generarCodigo();
 
-        // Si ya habia un registro pendiente con este email (abandono previo), se
-        // reutiliza la misma fila (upsert) para no chocar con el UNIQUE de email.
-        RegistroPendiente pend = pendingRepo.findByEmail(req.email()).orElseGet(RegistroPendiente::new);
+        // Cada registracion es una fila nueva e independiente, identificada por un
+        // token opaco. La verificacion se atara a ESTE token (no al email), asi dos
+        // registros con el mismo email no se pisan ni se mezclan los datos.
+        String token = generarToken();
+        RegistroPendiente pend = new RegistroPendiente();
+        pend.setToken(token);
         pend.setEmail(req.email());
         pend.setDocumento(req.documento());
         pend.setNombre(req.nombre());
@@ -94,7 +97,7 @@ public class AuthService {
         emailService.enviarCodigoVerificacion(req.email(), req.nombre(), codigo);
 
         return new RegisterResponse(
-                "pending-" + pend.getId(),
+                token,
                 "pending_verification",
                 "Te enviamos un codigo de verificacion a tu email.",
                 passwordProvisoria,
@@ -109,17 +112,8 @@ public class AuthService {
      */
     @Transactional
     public MessageResponse verifyEmail(VerifyEmailRequest req) {
-        RegistroPendiente pend = pendingRepo.findByEmail(req.email()).orElse(null);
-        if (pend == null) {
-            // Idempotencia: si ya existe un usuario verificado con ese email, esta ok.
-            boolean yaVerificado = usuarioRepo.findByEmail(req.email())
-                    .map(u -> "si".equals(u.getEmailVerificado()))
-                    .orElse(false);
-            if (yaVerificado) {
-                return MessageResponse.of("El email ya estaba verificado");
-            }
-            throw ApiException.unprocessable(ErrorCodes.CODE_INVALID, "Codigo invalido");
-        }
+        RegistroPendiente pend = pendingRepo.findByToken(req.registrationId())
+                .orElseThrow(() -> ApiException.unprocessable(ErrorCodes.CODE_INVALID, "Codigo invalido"));
         if (!pend.getCodigo().equals(req.codigo())) {
             throw ApiException.unprocessable(ErrorCodes.CODE_INVALID, "Codigo invalido");
         }
@@ -168,21 +162,22 @@ public class AuthService {
         usuario.setFechaCreacion(LocalDateTime.now());
         usuarioRepo.save(usuario);
 
-        pendingRepo.delete(pend);
+        // borra este pendiente y cualquier hermano del mismo email (ya no verificables)
+        pendingRepo.deleteByEmail(pend.getEmail());
         return MessageResponse.of("Email verificado correctamente");
     }
 
     /** Reenvia un nuevo codigo de verificacion. Respuesta generica (no revela si el email existe). */
     @Transactional
     public MessageResponse resendCode(ResendCodeRequest req) {
-        pendingRepo.findByEmail(req.email()).ifPresent(pend -> {
+        pendingRepo.findByToken(req.registrationId()).ifPresent(pend -> {
             String codigo = generarCodigo();
             pend.setCodigo(codigo);
             pend.setExpira(LocalDateTime.now().plusMinutes(15));
             pendingRepo.save(pend);
             emailService.enviarCodigoVerificacion(pend.getEmail(), pend.getNombre(), codigo);
         });
-        return MessageResponse.of("Si el email esta registrado, te enviamos un nuevo codigo.");
+        return MessageResponse.of("Si el registro sigue activo, te enviamos un nuevo codigo.");
     }
 
     // ---- helpers de tokens ----
@@ -195,6 +190,13 @@ public class AuthService {
     private String generarCodigo() {
         java.security.SecureRandom r = new java.security.SecureRandom();
         return String.format("%06d", r.nextInt(1_000_000)); // 000000..999999
+    }
+
+    /** Token opaco que identifica una registracion pendiente (el registrationId). */
+    private String generarToken() {
+        byte[] bytes = new byte[24];
+        new java.security.SecureRandom().nextBytes(bytes);
+        return java.util.Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
     }
 
     /** Genera una clave provisoria legible tipo BIDSTER-XK4P. */

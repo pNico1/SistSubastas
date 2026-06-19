@@ -7,7 +7,7 @@ import java.time.LocalDateTime;
 import java.util.Optional;
 
 public interface RegistroPendienteRepository extends JpaRepository<RegistroPendiente, Integer> {
-    Optional<RegistroPendiente> findByEmail(String email);
+    Optional<RegistroPendiente> findByToken(String token);
     long deleteByEmail(String email);
     long deleteByExpiraBefore(LocalDateTime momento);
 }

@@ -337,6 +337,7 @@ export default function RegisterScreen({ navigation }) {
         fotoDocDorso: form.fotoDorso,
       });
       navigation.replace('VerifyEmail', {
+        registrationId: res.registrationId,
         email: form.email.trim(),
         provisionalPassword: res.provisionalPassword,
         devCode: res.devCode,

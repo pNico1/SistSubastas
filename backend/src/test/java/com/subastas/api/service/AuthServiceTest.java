@@ -36,9 +36,9 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * Tests del codigo real de AuthService (repositorios mockeados). Cubren el nuevo
- * flujo de registro en dos fases (staging en registrosPendientes), login,
- * verificacion de email y recuperacion de contrasenia. Correr con: mvn test
+ * Tests del codigo real de AuthService (repositorios mockeados). Cubren el flujo
+ * de registro en dos fases (staging en registrosPendientes, atado por token),
+ * login, verificacion de email y recuperacion de contrasenia. Correr: mvn test
  */
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
@@ -65,6 +65,7 @@ class AuthServiceTest {
     private RegistroPendiente pendiente(String codigo, LocalDateTime expira) {
         RegistroPendiente p = new RegistroPendiente();
         p.setId(7);
+        p.setToken("tok-7");
         p.setEmail("juan@email.com");
         p.setDocumento("30123456");
         p.setNombre("Juan");
@@ -114,12 +115,11 @@ class AuthServiceTest {
     }
 
     @Test
-    void register_ok_guardaPendienteYNoTocaTablasReales() {
+    void register_ok_guardaPendienteConTokenYNoTocaTablasReales() {
         when(usuarioRepo.existsByEmail(any())).thenReturn(false);
         when(personaRepo.existsByDocumento(any())).thenReturn(false);
         when(paisRepo.existsById(1)).thenReturn(true);
-        when(pendingRepo.findByEmail(any())).thenReturn(Optional.empty());
-        when(pendingRepo.save(any())).thenAnswer(inv -> { RegistroPendiente p = inv.getArgument(0); p.setId(7); return p; });
+        when(pendingRepo.save(any())).thenAnswer(inv -> inv.getArgument(0));
         when(encoder.encode(any())).thenReturn("hash");
         when(emailService.isDevMode()).thenReturn(true);
 
@@ -128,6 +128,7 @@ class AuthServiceTest {
         assertThat(res.status()).isEqualTo("pending_verification");
         assertThat(res.provisionalPassword()).startsWith("BIDSTER-");
         assertThat(res.devCode()).matches("\\d{6}");           // codigo de 6 digitos en modo dev
+        assertThat(res.registrationId()).isNotBlank();          // token opaco
 
         // El fix: NO se crea nada en personas/usuarios/clientes hasta verificar.
         verify(personaRepo, never()).save(any());
@@ -176,42 +177,30 @@ class AuthServiceTest {
     // ------------------------ VERIFICACION DE EMAIL ----------------------
 
     @Test
-    void verifyEmail_sinPendiente_lanzaCodeInvalid() {
-        when(pendingRepo.findByEmail("juan@email.com")).thenReturn(Optional.empty());
-        when(usuarioRepo.findByEmail("juan@email.com")).thenReturn(Optional.empty());
+    void verifyEmail_tokenInexistente_lanzaCodeInvalid() {
+        when(pendingRepo.findByToken("tok-x")).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> authService.verifyEmail(new VerifyEmailRequest("juan@email.com", "000000")))
+        assertThatThrownBy(() -> authService.verifyEmail(new VerifyEmailRequest("tok-x", "000000")))
                 .isInstanceOfSatisfying(ApiException.class, ex ->
                         assertThat(ex.getCode()).isEqualTo(ErrorCodes.CODE_INVALID));
     }
 
     @Test
-    void verifyEmail_yaVerificado_esIdempotente() {
-        Usuario u = new Usuario(); u.setId(10); u.setEmailVerificado("si");
-        when(pendingRepo.findByEmail("juan@email.com")).thenReturn(Optional.empty());
-        when(usuarioRepo.findByEmail("juan@email.com")).thenReturn(Optional.of(u));
-
-        var res = authService.verifyEmail(new VerifyEmailRequest("juan@email.com", "123456"));
-
-        assertThat(res.message()).contains("ya estaba verificado");
-    }
-
-    @Test
     void verifyEmail_codigoIncorrecto_lanzaCodeInvalid() {
-        when(pendingRepo.findByEmail("juan@email.com"))
+        when(pendingRepo.findByToken("tok-7"))
                 .thenReturn(Optional.of(pendiente("123456", LocalDateTime.now().plusMinutes(10))));
 
-        assertThatThrownBy(() -> authService.verifyEmail(new VerifyEmailRequest("juan@email.com", "000000")))
+        assertThatThrownBy(() -> authService.verifyEmail(new VerifyEmailRequest("tok-7", "000000")))
                 .isInstanceOfSatisfying(ApiException.class, ex ->
                         assertThat(ex.getCode()).isEqualTo(ErrorCodes.CODE_INVALID));
     }
 
     @Test
     void verifyEmail_codigoExpirado_lanzaCodeExpired() {
-        when(pendingRepo.findByEmail("juan@email.com"))
+        when(pendingRepo.findByToken("tok-7"))
                 .thenReturn(Optional.of(pendiente("123456", LocalDateTime.now().minusMinutes(1))));
 
-        assertThatThrownBy(() -> authService.verifyEmail(new VerifyEmailRequest("juan@email.com", "123456")))
+        assertThatThrownBy(() -> authService.verifyEmail(new VerifyEmailRequest("tok-7", "123456")))
                 .isInstanceOfSatisfying(ApiException.class, ex -> {
                     assertThat(ex.getCode()).isEqualTo(ErrorCodes.CODE_EXPIRED);
                     assertThat(ex.getStatus().value()).isEqualTo(410);
@@ -221,7 +210,7 @@ class AuthServiceTest {
     @Test
     void verifyEmail_codigoCorrecto_creaUsuarioYBorraPendiente() {
         RegistroPendiente pend = pendiente("123456", LocalDateTime.now().plusMinutes(10));
-        when(pendingRepo.findByEmail("juan@email.com")).thenReturn(Optional.of(pend));
+        when(pendingRepo.findByToken("tok-7")).thenReturn(Optional.of(pend));
         when(usuarioRepo.existsByEmail("juan@email.com")).thenReturn(false);
         when(personaRepo.existsByDocumento("30123456")).thenReturn(false);
         when(personaRepo.save(any())).thenAnswer(inv -> { Persona p = inv.getArgument(0); p.setIdentificador(5); return p; });
@@ -229,14 +218,14 @@ class AuthServiceTest {
         when(empleadoRepo.findAll()).thenReturn(List.of(emp));
         when(usuarioRepo.save(any())).thenAnswer(inv -> { Usuario u = inv.getArgument(0); u.setId(10); return u; });
 
-        var res = authService.verifyEmail(new VerifyEmailRequest("juan@email.com", "123456"));
+        var res = authService.verifyEmail(new VerifyEmailRequest("tok-7", "123456"));
 
-        assertThat(res.message()).contains("verificado correctamente");
-        // se crearon las filas reales y se borro el pendiente
+        assertThat(res.mensaje()).contains("verificado correctamente");
+        // se crearon las filas reales y se borro el pendiente (por email, incluye hermanos)
         verify(personaRepo).save(any());
         verify(clienteRepo).save(any());
         verify(usuarioRepo).save(any());
-        verify(pendingRepo).delete(pend);
+        verify(pendingRepo).deleteByEmail("juan@email.com");
     }
 
     // ----------------------- RECUPERACION DE CLAVE -----------------------

@@ -10,8 +10,13 @@ import java.time.LocalDateTime;
 /**
  * Registro de un postor que todavia NO verifico su email. Tabla nueva: no toca
  * ninguna tabla original. Mientras la cuenta no se verifica, NO existe persona/
- * usuario/cliente, asi que si el usuario abandona el registro no queda nada y
- * puede volver a registrarse con el mismo email/documento.
+ * usuario/cliente.
+ *
+ * Cada registracion es una fila propia identificada por un 'token' opaco (el
+ * registrationId que se devuelve al front). La verificacion se ata a ESA fila,
+ * no al email: si dos personas usan el mismo email, cada una solo puede
+ * completar su propia registracion con el codigo que le corresponde, y no se
+ * mezclan datos.
  *
  * El codigo se guarda en claro (es efimero, 15 min). La clave provisoria se
  * guarda HASHEADA: al verificar, ese mismo hash pasa tal cual a usuarios.
@@ -24,6 +29,8 @@ public class RegistroPendiente {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer id;
+
+    private String token;          // registrationId opaco: identifica esta registracion
 
     private String email;
     private String documento;

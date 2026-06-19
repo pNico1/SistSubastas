@@ -402,13 +402,16 @@ CREATE TABLE pagos (
 );
 
 -- registrosPendientes: registros de postores que AUN NO verificaron su email.
---  No se crean filas en personas/usuarios/clientes hasta que el usuario ingresa
---  el codigo. Asi, si abandona el registro antes de verificar, no queda nada en
---  las tablas reales y puede volver a registrarse con el mismo email/documento.
---  NO tiene FK a tablas originales (la persona todavia no existe). El codigo se
---  guarda en claro (es efimero, 15 min); la clave provisoria se guarda HASHEADA.
+--  No se crea nada en personas/usuarios/clientes hasta que el usuario ingresa el
+--  codigo. Cada registro es una fila propia identificada por un 'token' opaco
+--  (el registrationId): la verificacion se ata a ESA fila, no al email. Asi, si
+--  dos personas usan el mismo email, cada una solo puede completar su propia
+--  registracion con el codigo que le corresponde, y no se mezclan datos. No tiene
+--  FK a tablas originales (la persona todavia no existe). El codigo se guarda en
+--  claro (efimero, 15 min); la clave provisoria se guarda HASHEADA.
 CREATE TABLE registrosPendientes (
     id            INT          NOT NULL AUTO_INCREMENT,
+    token         VARCHAR(64)  NOT NULL,
     email         VARCHAR(150) NOT NULL,
     documento     VARCHAR(20)  NOT NULL,
     nombre        VARCHAR(150) NOT NULL,
@@ -422,7 +425,7 @@ CREATE TABLE registrosPendientes (
     expira        DATETIME     NOT NULL,
     fechaCreacion DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT pk_registrosPendientes PRIMARY KEY (id),
-    CONSTRAINT uq_registrosPendientes_email UNIQUE (email)
+    CONSTRAINT uq_registrosPendientes_token UNIQUE (token)
 );
 
 -- ====================  TRIGGERS: regla de chkFecha [T3]  ====================
@@ -436,4 +439,20 @@ DELIMITER $$
 CREATE TRIGGER trg_subastas_fecha_ins BEFORE INSERT ON subastas
 FOR EACH ROW
 BEGIN
-    IF NEW.fecha IS NOT NULL AND 
+    IF NEW.fecha IS NOT NULL AND NEW.fecha <= DATE_ADD(CURDATE(), INTERVAL 10 DAY) THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'La subasta debe crearse con al menos 10 dias de anticipacion';
+    END IF;
+END$$
+
+CREATE TRIGGER trg_subastas_fecha_upd BEFORE UPDATE ON subastas
+FOR EACH ROW
+BEGIN
+    IF NEW.fecha IS NOT NULL AND NEW.fecha <> OLD.fecha
+       AND NEW.fecha <= DATE_ADD(CURDATE(), INTERVAL 10 DAY) THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'La subasta debe crearse con al menos 10 dias de anticipacion';
+    END IF;
+END$$
+
+DELIMITER ;
