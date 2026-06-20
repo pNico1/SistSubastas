@@ -70,4 +70,8 @@ public final class ErrorCodes {
     public static final String TERMS_NOT_ACCEPTED = "TERMS_NOT_ACCEPTED";
     public static final String NO_PHOTOS = "NO_PHOTOS";
     public static final String INVALID_IMAGE = "INVALID_IMAGE";
+
+    // perfil / metricas (area 3)
+    public static final String INVALID_DATE_RANGE = "INVALID_DATE_RANGE";
+    public static final String CATEGORY_CHANGE_NOT_ALLOWED = "CATEGORY_CHANGE_NOT_ALLOWED";
 }

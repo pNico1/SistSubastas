@@ -1,8 +1,11 @@
 package com.subastas.api.controller;
 
 import com.subastas.api.dto.ClienteProfileDto;
+import com.subastas.api.dto.UpdateClienteRequest;
 import com.subastas.api.service.ClienteService;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -31,5 +34,10 @@ public class ClienteController {
     @GetMapping("/verificacion")
     public Map<String, Object> verificacion() {
         return clienteService.getVerificacion();
+    }
+
+    @PutMapping
+    public Map<String, String> actualizar(@RequestBody UpdateClienteRequest req) {
+        return clienteService.updateMyClient(req);
     }
 }

@@ -5,12 +5,14 @@ import com.subastas.api.common.ErrorCodes;
 import com.subastas.api.domain.Cliente;
 import com.subastas.api.domain.Persona;
 import com.subastas.api.dto.ClienteProfileDto;
+import com.subastas.api.dto.UpdateClienteRequest;
 import com.subastas.api.repository.ClienteRepository;
 import com.subastas.api.repository.PaisRepository;
 import com.subastas.api.repository.PersonaRepository;
 import com.subastas.api.security.AuthPrincipal;
 import com.subastas.api.security.CurrentUser;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -63,5 +65,32 @@ public class ClienteService {
         res.put("nivel", "si".equals(c.getAdmitido()) ? "completo" : "parcial");
         res.put("observaciones", "si".equals(c.getAdmitido()) ? "sin novedades" : "en proceso de verificacion");
         return res;
+    }
+
+    /**
+     * Actualiza los datos editables del cliente (por ahora, el pais).
+     * La categoria la asigna la empresa: si el cliente intenta cambiarla a un
+     * valor distinto del actual, se rechaza con 409.
+     */
+    @Transactional
+    public Map<String, String> updateMyClient(UpdateClienteRequest req) {
+        AuthPrincipal p = CurrentUser.requireCliente();
+        Cliente c = clienteRepo.findById(p.clienteId())
+                .orElseThrow(() -> ApiException.notFound(ErrorCodes.CLIENTE_NOT_FOUND, "Cliente no encontrado"));
+
+        if (req.categoria() != null && !req.categoria().equals(c.getCategoria())) {
+            throw ApiException.conflict(ErrorCodes.CATEGORY_CHANGE_NOT_ALLOWED,
+                    "La categoria la asigna la empresa, no puede cambiarse manualmente");
+        }
+
+        if (req.numeroPais() != null) {
+            if (!paisRepo.existsById(req.numeroPais())) {
+                throw ApiException.notFound(ErrorCodes.PAIS_NOT_FOUND, "El pais indicado no existe");
+            }
+            c.setNumeroPais(req.numeroPais());
+        }
+
+        clienteRepo.save(c);
+        return Map.of("message", "Cliente actualizado correctamente");
     }
 }
