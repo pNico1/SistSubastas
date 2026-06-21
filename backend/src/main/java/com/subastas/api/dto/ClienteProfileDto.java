@@ -6,7 +6,8 @@ public record ClienteProfileDto(
         String apellido,
         String categoria,
         String admitido,
-        PaisRef pais
+        PaisRef pais,
+        String direccion
 ) {
     public record PaisRef(Integer id, String nombre) {}
 }

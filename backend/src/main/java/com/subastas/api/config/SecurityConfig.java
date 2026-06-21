@@ -56,6 +56,9 @@ public class SecurityConfig {
                 .requestMatchers("/api/auth/**", "/auth/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/paises/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/subastas", "/api/subastas/**").permitAll()
+                // ---- Área 2: consulta pública de productos ----
+                .requestMatchers(HttpMethod.GET, "/api/productos", "/api/productos/**").permitAll()
+                // ---- fin Área 2 ----
                 .requestMatchers("/error").permitAll()
                 // admin / empleados
                 .requestMatchers("/api/admin/**").hasRole("EMPLEADO")

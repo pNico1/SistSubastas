@@ -161,7 +161,7 @@ export default function RegisterCompleteScreen({ navigation }) {
             {loading ? (
               <ActivityIndicator color="#fff" />
             ) : (
-              <Text style={styles.buttonText}>Finalizar Registro  ○</Text>
+              <Text style={styles.buttonText}>Finalizar Registro </Text>
             )}
           </TouchableOpacity>
         </ScrollView>

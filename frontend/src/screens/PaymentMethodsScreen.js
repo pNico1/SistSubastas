@@ -1,31 +1,33 @@
 import React, { useCallback, useState } from 'react';
 import {
-  Alert,
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+  Alert, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
+import { MaterialIcons } from '@expo/vector-icons';
 import { clienteApi } from '../api/endpoints';
 import Loading from '../components/Loading';
 import ErrorView from '../components/ErrorView';
+import { goBackOrReturnTo } from '../navigationUtils';
 
 const palette = {
   background: '#F9F5FF',
   surface: '#FFFFFF',
-  field: '#F5F2FF',
-  primary: '#2357FF',
+  surfaceLow: '#F2EFFF',
+  primary: '#0846ED',
+  primaryFaint: 'rgba(8,70,237,0.10)',
   text: '#2B2A51',
-  muted: '#8B88A8',
-  border: '#DCD7F4',
-  danger: '#FF748D',
+  muted: '#585781',
+  border: 'rgba(171,169,215,0.35)',
+  danger: '#B41340',
+  dangerFaint: 'rgba(180,19,64,0.08)',
+  success: '#16803A',
+  successFaint: '#E7F6EC',
+  warning: '#B45309',
+  warningFaint: '#FEF3C7',
 };
 
-export default function PaymentMethodsScreen({ navigation }) {
+export default function PaymentMethodsScreen({ navigation, route }) {
   const [metodos, setMetodos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -34,8 +36,7 @@ export default function PaymentMethodsScreen({ navigation }) {
   const load = useCallback(async () => {
     setError(null);
     try {
-      const data = await clienteApi.metodosPago();
-      setMetodos(data || []);
+      setMetodos((await clienteApi.metodosPago()) || []);
     } catch (err) {
       setError(err);
     } finally {
@@ -44,12 +45,10 @@ export default function PaymentMethodsScreen({ navigation }) {
     }
   }, []);
 
-  useFocusEffect(useCallback(() => {
-    load();
-  }, [load]));
+  useFocusEffect(useCallback(() => { load(); }, [load]));
 
   function eliminar(id) {
-    Alert.alert('Eliminar medio de pago', 'Seguro que queres eliminarlo?', [
+    Alert.alert('Eliminar medio de pago', '¿Seguro que querés eliminarlo?', [
       { text: 'Cancelar', style: 'cancel' },
       {
         text: 'Eliminar',
@@ -71,41 +70,75 @@ export default function PaymentMethodsScreen({ navigation }) {
 
   return (
     <SafeAreaView style={styles.screen} edges={['top']}>
+      <View style={styles.header}>
+        <TouchableOpacity
+          onPress={() => goBackOrReturnTo(navigation, route)}
+          style={styles.backButton}
+          hitSlop={10}
+          accessibilityRole="button"
+          accessibilityLabel="Volver"
+        >
+          <MaterialIcons name="arrow-back" size={22} color={palette.text} />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Métodos de pago</Text>
+        <View style={{ width: 36 }} />
+      </View>
+
       <ScrollView
         contentContainerStyle={styles.container}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} />}
         showsVerticalScrollIndicator={false}
       >
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton} hitSlop={10}>
-          <Text style={styles.backArrow}>{'<'}</Text>
-        </TouchableOpacity>
-
-        <Text style={styles.title}>Agregar medio{'\n'}de pago</Text>
+        <Text style={styles.title}>Tus medios de pago</Text>
+        <Text style={styles.subtitle}>
+          Para pujar necesitás al menos un medio verificado por la empresa.
+        </Text>
 
         <View style={styles.list}>
           {metodos.map((metodo) => (
-            <TouchableOpacity
-              key={metodo.id}
-              activeOpacity={0.86}
-              onLongPress={() => eliminar(metodo.id)}
-              style={styles.methodCard}
-            >
+            <View key={metodo.id} style={styles.methodCard}>
+              <View style={styles.methodIcon}>
+                <MaterialIcons name={methodIcon(metodo.tipo)} size={22} color={palette.primary} />
+              </View>
               <View style={styles.methodText}>
                 <Text style={styles.methodTitle}>{displayTitle(metodo)}</Text>
                 <Text style={styles.methodSub}>{displaySubtitle(metodo)}</Text>
+                {metodo.moneda ? <Text style={styles.currency}>{metodo.moneda}</Text> : null}
               </View>
-              <Text style={styles.state}>{metodo.estado === 'verified' ? 'OK' : 'PEND'}</Text>
-            </TouchableOpacity>
+              <View style={styles.methodActions}>
+                <StatusBadge estado={metodo.estado} />
+                <TouchableOpacity
+                  onPress={() => eliminar(metodo.id)}
+                  style={styles.deleteButton}
+                  hitSlop={8}
+                  accessibilityRole="button"
+                  accessibilityLabel={'Eliminar ' + displayTitle(metodo)}
+                >
+                  <MaterialIcons name="delete-outline" size={19} color={palette.danger} />
+                </TouchableOpacity>
+              </View>
+            </View>
           ))}
+
+          {metodos.length === 0 ? (
+            <View style={styles.emptyState}>
+              <View style={styles.emptyIcon}>
+                <MaterialIcons name="account-balance-wallet" size={32} color={palette.primary} />
+              </View>
+              <Text style={styles.emptyTitle}>Todavía no registraste medios</Text>
+              <Text style={styles.emptyText}>
+                Agregá una tarjeta, cuenta bancaria o cheque certificado.
+              </Text>
+            </View>
+          ) : null}
 
           <TouchableOpacity
             activeOpacity={0.86}
             onPress={() => navigation.navigate('PaymentMethod', { from: 'PaymentMethods' })}
-            style={styles.addCard}
+            style={styles.addButton}
           >
-            <View style={styles.plusCircle}>
-              <Text style={styles.plus}>+</Text>
-            </View>
+            <MaterialIcons name="add" size={21} color="#FFFFFF" />
+            <Text style={styles.addButtonText}>Agregar medio de pago</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -113,106 +146,99 @@ export default function PaymentMethodsScreen({ navigation }) {
   );
 }
 
+function methodIcon(tipo) {
+  if (tipo === 'tarjeta') return 'credit-card';
+  if (tipo === 'cuenta_bancaria') return 'account-balance';
+  if (tipo === 'cheque') return 'description';
+  return 'payments';
+}
+
+function StatusBadge({ estado }) {
+  const verified = estado === 'verified' || estado === 'verificado';
+  return (
+    <View style={[styles.statusBadge, verified ? styles.statusVerified : styles.statusPending]}>
+      <MaterialIcons
+        name={verified ? 'verified' : 'schedule'}
+        size={13}
+        color={verified ? palette.success : palette.warning}
+      />
+      <Text style={[styles.statusText, { color: verified ? palette.success : palette.warning }]}>
+        {verified ? 'Verificado' : 'Pendiente'}
+      </Text>
+    </View>
+  );
+}
+
 function displayTitle(metodo) {
   if (metodo.tipo === 'tarjeta') return metodo.marca || 'Tarjeta';
-  if (metodo.tipo === 'cuenta_bancaria') return 'Cuenta Bancaria';
-  if (metodo.tipo === 'cheque') return 'Cheque Certificado';
-  return metodo.tipo || 'Metodo de pago';
+  if (metodo.tipo === 'cuenta_bancaria') return 'Cuenta bancaria';
+  if (metodo.tipo === 'cheque') return 'Cheque certificado';
+  return metodo.tipo || 'Medio de pago';
 }
 
 function displaySubtitle(metodo) {
-  if (metodo.ultimos4) return `***${metodo.ultimos4}`;
-  if (metodo.cbu) return `CBU ${metodo.cbu.slice(-6)}`;
+  if (metodo.ultimos4) return '•••• ' + metodo.ultimos4;
+  if (metodo.cbu) return 'CBU terminado en ' + metodo.cbu.slice(-6);
   if (metodo.banco) return metodo.banco;
-  return metodo.estado === 'verified' ? 'Verificado' : 'Pendiente';
+  return metodo.titular || 'Sin detalle';
 }
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: palette.background },
-  container: {
-    flexGrow: 1,
-    paddingHorizontal: 24,
-    paddingTop: 14,
-    paddingBottom: 28,
-  },
-  backButton: {
-    width: 42,
-    height: 34,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: palette.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 18,
-  },
-  backArrow: {
-    color: palette.text,
-    fontSize: 22,
-    lineHeight: 24,
-    fontWeight: '800',
-  },
-  title: {
-    color: palette.text,
-    fontSize: 28,
-    lineHeight: 34,
-    fontWeight: '800',
-    marginBottom: 22,
-  },
-  list: { gap: 14 },
-  methodCard: {
-    minHeight: 82,
-    borderRadius: 12,
+  header: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: 16, paddingBottom: 14,
     backgroundColor: palette.surface,
-    borderWidth: 1,
-    borderColor: palette.border,
-    paddingHorizontal: 18,
-    paddingVertical: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
+    borderBottomWidth: 1, borderBottomColor: palette.border,
+  },
+  headerTitle: { color: palette.text, fontSize: 16, fontWeight: '800' },
+  backButton: {
+    width: 36, height: 36, borderRadius: 18,
+    backgroundColor: palette.surfaceLow,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  container: { flexGrow: 1, paddingHorizontal: 20, paddingTop: 22, paddingBottom: 32 },
+  title: { color: palette.text, fontSize: 25, lineHeight: 31, fontWeight: '900' },
+  subtitle: { color: palette.muted, fontSize: 14, lineHeight: 20, marginTop: 6, marginBottom: 20 },
+  list: { gap: 12 },
+  methodCard: {
+    minHeight: 96, borderRadius: 16, backgroundColor: palette.surface,
+    borderWidth: 1, borderColor: palette.border, padding: 14,
+    flexDirection: 'row', alignItems: 'center',
+  },
+  methodIcon: {
+    width: 46, height: 46, borderRadius: 14, backgroundColor: palette.primaryFaint,
+    alignItems: 'center', justifyContent: 'center', marginRight: 12,
   },
   methodText: { flex: 1, minWidth: 0 },
-  methodTitle: {
-    color: palette.text,
-    fontSize: 18,
-    lineHeight: 24,
-    fontWeight: '800',
-    textTransform: 'uppercase',
+  methodTitle: { color: palette.text, fontSize: 15, lineHeight: 20, fontWeight: '800' },
+  methodSub: { color: palette.muted, fontSize: 13, lineHeight: 18, fontWeight: '600', marginTop: 3 },
+  currency: { color: palette.primary, fontSize: 10, fontWeight: '900', marginTop: 5 },
+  methodActions: {
+    alignItems: 'flex-end', justifyContent: 'space-between',
+    alignSelf: 'stretch', marginLeft: 8,
   },
-  methodSub: {
-    color: palette.text,
-    fontSize: 20,
-    lineHeight: 26,
-    fontWeight: '800',
-    marginTop: 8,
+  statusBadge: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    paddingHorizontal: 8, paddingVertical: 5, borderRadius: 999,
   },
-  state: {
-    color: palette.muted,
-    fontSize: 11,
-    fontWeight: '900',
-    marginLeft: 10,
+  statusVerified: { backgroundColor: palette.successFaint },
+  statusPending: { backgroundColor: palette.warningFaint },
+  statusText: { fontSize: 10, fontWeight: '800' },
+  deleteButton: {
+    width: 30, height: 30, borderRadius: 15, backgroundColor: palette.dangerFaint,
+    alignItems: 'center', justifyContent: 'center',
   },
-  addCard: {
-    height: 72,
-    borderRadius: 12,
-    backgroundColor: palette.surface,
-    borderWidth: 1,
-    borderColor: palette.border,
-    alignItems: 'center',
-    justifyContent: 'center',
+  emptyState: { alignItems: 'center', paddingVertical: 28, paddingHorizontal: 20 },
+  emptyIcon: {
+    width: 66, height: 66, borderRadius: 33, backgroundColor: palette.primaryFaint,
+    alignItems: 'center', justifyContent: 'center',
   },
-  plusCircle: {
-    width: 58,
-    height: 58,
-    borderRadius: 29,
-    borderWidth: 2,
-    borderColor: palette.text,
-    alignItems: 'center',
-    justifyContent: 'center',
+  emptyTitle: { color: palette.text, fontSize: 17, fontWeight: '900', marginTop: 14, textAlign: 'center' },
+  emptyText: { color: palette.muted, fontSize: 13, lineHeight: 19, marginTop: 6, textAlign: 'center' },
+  addButton: {
+    minHeight: 52, borderRadius: 14, backgroundColor: palette.primary,
+    flexDirection: 'row', gap: 8, alignItems: 'center', justifyContent: 'center', marginTop: 6,
   },
-  plus: {
-    color: palette.text,
-    fontSize: 36,
-    lineHeight: 36,
-    fontWeight: '300',
-  },
+  addButtonText: { color: '#FFFFFF', fontSize: 14, fontWeight: '800' },
 });

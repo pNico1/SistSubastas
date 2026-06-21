@@ -103,6 +103,6 @@ Usuarios de prueba (password para todos: `Password123!`):
 | `maria@email.com` | cliente | plata |
 | `admin@subastas.com` | empleado/admin | — |
 
-> Validación: schema y seed parsean con `sqlglot` (dialecto MySQL); se verificó
-> programáticamente que las 16 tablas originales tienen exactamente las columnas
-> del archivo, que las 42 FK resuelven y que el seed respeta la estructura.
+> Validación: el esquema y el seed se verificaron con `sqlglot` (dialecto MySQL):
+> 25 tablas, todas las FK resuelven, el seed respeta integridad referencial y
+> todos los CHECK (enums) son válidos.
