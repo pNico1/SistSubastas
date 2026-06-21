@@ -6,14 +6,10 @@ export const authApi = {
     client.post('/api/auth/login', { email, password }).then((r) => r.data),
   register: (data) =>
     client.post('/api/auth/register', data).then((r) => r.data),
-  verifyEmail: (registrationId, codigo) =>
-    client.post('/api/auth/verify-email', { registrationId, codigo }).then((r) => r.data),
-  resendCode: (registrationId) =>
-    client.post('/api/auth/resend-code', { registrationId }).then((r) => r.data),
-  forgotPassword: (email) =>
-    client.post('/api/auth/forgot-password', { email }).then((r) => r.data),
-  resetPassword: (email, codigo, password, passwordConfirmation) =>
-    client.post('/api/auth/reset-password', { email, codigo, password, passwordConfirmation }).then((r) => r.data),
+  verifyEmail: (email, codigo) =>
+    client.post('/api/auth/verify-email', { email, codigo }).then((r) => r.data),
+  resendCode: (email) =>
+    client.post('/api/auth/resend-code', { email }).then((r) => r.data),
   completeRegistration: (password, passwordConfirmation) =>
     client.post('/api/auth/register-complete', { password, passwordConfirmation }).then((r) => r.data),
   me: () =>
@@ -70,12 +66,24 @@ export const clienteApi = {
   salir: () => client.delete('/api/clientes/me/salir').then((r) => r.data),
   misPujas: (params = {}) =>
     client.get('/api/clientes/me/pujas', { params }).then((r) => r.data),
+  // ---- ESTADISTICAS ----
+  victorias: (params = {}) =>
+    client.get('/api/clientes/me/victorias', { params }).then((r) => r.data),
+  victoriasStats: (params = {}) =>
+    client.get('/api/clientes/me/victorias/estadisticas', { params }).then((r) => r.data),
+  asistencias: () =>
+    client.get('/api/clientes/me/asistencias').then((r) => r.data),
+  asistenciasStats: (params = {}) =>
+    client.get('/api/clientes/me/asistencias/estadisticas', { params }).then((r) => r.data),
   metodosPago: () => client.get('/api/clientes/me/metodos-pago').then((r) => r.data),
   crearMetodoPago: (data) =>
     client.post('/api/clientes/me/metodos-pago', data).then((r) => r.data),
   eliminarMetodoPago: (id) =>
     client.delete(`/api/clientes/me/metodos-pago/${id}`).then((r) => r.data),
+  // NOTIFICACIONES: listar y marcar como leída (PATCH /read)
   notificaciones: () => client.get('/api/clientes/me/notifications').then((r) => r.data),
+  marcarNotificacionLeida: (id) =>
+    client.patch(`/api/clientes/me/notifications/${id}/read`).then((r) => r.data),
 };
 
 // ---- ADMIN (segun contrato del PDF) ----
