@@ -24,16 +24,19 @@ public class SubastaService {
     private final ProductoRepository productoRepo;
     private final PujoRepository pujoRepo;
     private final AsistenteRepository asistenteRepo;
+    private final SubastaTiempoService tiempoService;
 
     public SubastaService(SubastaRepository subastaRepo, CatalogoRepository catalogoRepo,
                           ItemCatalogoRepository itemRepo, ProductoRepository productoRepo,
-                          PujoRepository pujoRepo, AsistenteRepository asistenteRepo) {
+                          PujoRepository pujoRepo, AsistenteRepository asistenteRepo,
+                          SubastaTiempoService tiempoService) {
         this.subastaRepo = subastaRepo;
         this.catalogoRepo = catalogoRepo;
         this.itemRepo = itemRepo;
         this.productoRepo = productoRepo;
         this.pujoRepo = pujoRepo;
         this.asistenteRepo = asistenteRepo;
+        this.tiempoService = tiempoService;
     }
 
     public PageResponse<SubastaDto> listar(String estado, String categoria, int page, int pageSize) {
@@ -56,7 +59,18 @@ public class SubastaService {
     }
 
     public String getEstado(Integer id) {
-        return findSubasta(id).getEstado();
+        findSubasta(id);
+        return tiempoService.materializar(id).estado();
+    }
+
+    /** Item que se esta subastando ahora + tiempos, para que el front muestre uno por vez. */
+    public ItemActivoDto getItemActivo(Integer id) {
+        findSubasta(id);
+        SubastaTiempoService.Fase f = tiempoService.materializar(id);
+        Long restantes = (f.itemTermina() == null) ? null
+                : Math.max(0, java.time.Duration.between(java.time.LocalDateTime.now(), f.itemTermina()).getSeconds());
+        return new ItemActivoDto(id, f.estado(), f.itemActivoId(), restantes,
+                SubastaTiempoService.INACTIVIDAD_SEG, f.proximoArranca());
     }
 
     public CatalogoDto getCatalogo(Integer subastaId) {

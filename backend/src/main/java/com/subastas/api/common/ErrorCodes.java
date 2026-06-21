@@ -38,19 +38,24 @@ public final class ErrorCodes {
     public static final String INVALID_CATEGORY = "INVALID_CATEGORY";
     public static final String SUBASTA_ALREADY_CLOSED = "SUBASTA_ALREADY_CLOSED";
     public static final String SUBASTA_CERRADA = "SUBASTA_CERRADA";
+    public static final String SUBASTA_NOT_STARTED = "SUBASTA_NOT_STARTED";
+    public static final String ITEM_NOT_ACTIVE = "ITEM_NOT_ACTIVE";
     public static final String CATALOGO_NOT_FOUND = "CATALOGO_NOT_FOUND";
     public static final String ITEM_NOT_FOUND = "ITEM_NOT_FOUND";
     public static final String ITEM_NOT_IN_SUBASTA = "ITEM_NOT_IN_SUBASTA";
     public static final String NOT_PART_OF_SUBASTA = "NOT_PART_OF_SUBASTA";
     public static final String ALREADY_JOINED = "ALREADY_JOINED";
+    public static final String ALREADY_IN_ANOTHER_AUCTION = "ALREADY_IN_ANOTHER_AUCTION";
     public static final String NOT_ALLOWED = "NOT_ALLOWED";
 
     // pujas
     public static final String INVALID_AMOUNT = "INVALID_AMOUNT";
     public static final String PUJA_TOO_LOW = "PUJA_TOO_LOW";
     public static final String PUJA_TOO_HIGH = "PUJA_TOO_HIGH";
+    public static final String ALREADY_HIGHEST_BIDDER = "ALREADY_HIGHEST_BIDDER";
     public static final String ITEM_ALREADY_SOLD = "ITEM_ALREADY_SOLD";
     public static final String NO_VERIFIED_PAYMENT_METHOD = "NO_VERIFIED_PAYMENT_METHOD";
+    public static final String GARANTIA_EXCEDIDA = "GARANTIA_EXCEDIDA";
     public static final String PUJA_NOT_FOUND = "PUJA_NOT_FOUND";
     public static final String NOT_OWNER_OF_PUJA = "NOT_OWNER_OF_PUJA";
     public static final String NOT_CLIENT = "NOT_CLIENT";
@@ -70,4 +75,17 @@ public final class ErrorCodes {
     public static final String TERMS_NOT_ACCEPTED = "TERMS_NOT_ACCEPTED";
     public static final String NO_PHOTOS = "NO_PHOTOS";
     public static final String INVALID_IMAGE = "INVALID_IMAGE";
+
+    // adquisiciones / entrega / pagos (area 1)
+    public static final String ADQUISICION_NOT_FOUND = "ADQUISICION_NOT_FOUND";
+    public static final String ADQUISICION_ALREADY_PAID = "ADQUISICION_ALREADY_PAID";
+    public static final String FACTURA_NOT_FOUND = "FACTURA_NOT_FOUND";
+    public static final String PAYMENT_METHOD_NOT_VERIFIED = "PAYMENT_METHOD_NOT_VERIFIED";
+    public static final String ENTREGA_ALREADY_DEFINED = "ENTREGA_ALREADY_DEFINED";
+    public static final String ENTREGA_NOT_FOUND = "ENTREGA_NOT_FOUND";
+    public static final String ENTREGA_NOT_GENERATED = "ENTREGA_NOT_GENERATED";
+    public static final String DELIVERY_TYPE_MISMATCH = "DELIVERY_TYPE_MISMATCH";
+    public static final String DELIVERY_NOT_CONFIRMABLE = "DELIVERY_NOT_CONFIRMABLE";
+    public static final String MULTA_NOT_FOUND = "MULTA_NOT_FOUND";
+    public static final String MULTA_ALREADY_PAID = "MULTA_ALREADY_PAID";
 }

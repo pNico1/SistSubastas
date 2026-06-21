@@ -12,6 +12,7 @@ import Loading from '../components/Loading';
 import ErrorView from '../components/ErrorView';
 import Button from '../components/Button';
 import { navigateWithReturnTo } from '../navigationUtils';
+import { POLLING_MS } from '../config';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 const CARD_W = SCREEN_W * 0.82;
@@ -47,14 +48,16 @@ const PLACEHOLDER_GRADIENTS = [
 
 const PLACEHOLDER_ICONS = ['gavel', 'diamond', 'star', 'auto-awesome', 'workspace-premium'];
 
-function LotCard({ item, index, subasta, joined, onPress }) {
+function LotCard({ item, index, subasta, joined, activeItemId, subEstado, onPress }) {
   const gradientColors = PLACEHOLDER_GRADIENTS[index % PLACEHOLDER_GRADIENTS.length];
   const iconName = PLACEHOLDER_ICONS[index % PLACEHOLDER_ICONS.length];
   const vendido = item.subastado === 'si';
+  const esActivo = !vendido && Number(item.itemId) === Number(activeItemId);
+  const finalizada = !vendido && !esActivo && subEstado === 'cerrada';
 
   return (
     <TouchableOpacity
-      style={[styles.lotCard, { width: CARD_W }]}
+      style={[styles.lotCard, { width: CARD_W }, esActivo && styles.lotCardActive]}
       onPress={onPress}
       activeOpacity={0.88}
     >
@@ -66,9 +69,18 @@ function LotCard({ item, index, subasta, joined, onPress }) {
 
         {/* Badges sobre la imagen */}
         <View style={styles.lotImgBadges}>
-          {!vendido && (
-            <View style={styles.liveBadge}>
-              <Text style={styles.liveBadgeText}>LIVE AUCTION</Text>
+          {vendido ? null : esActivo ? (
+            <View style={styles.activeBadge}>
+              <View style={styles.activeDot} />
+              <Text style={styles.activeBadgeText}>EN VIVO</Text>
+            </View>
+          ) : finalizada ? (
+            <View style={styles.doneBadge}>
+              <Text style={styles.doneBadgeText}>FINALIZADO</Text>
+            </View>
+          ) : (
+            <View style={styles.waitBadge}>
+              <Text style={styles.waitBadgeText}>EN ESPERA</Text>
             </View>
           )}
           <View style={styles.lotNumBadge}>
@@ -128,8 +140,27 @@ export default function SubastaDetailScreen({ route, navigation }) {
   const [error, setError] = useState(null);
   const [joining, setJoining] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
+  const [activeItemId, setActiveItemId] = useState(null);
+  const [subEstado, setSubEstado] = useState(null);
   const carouselRef = useRef(null);
+  const cerradaRef = useRef(false);
   const pendingVerification = user?.estado === 'pending_verification';
+
+  // Item que se esta subastando ahora (motor temporal). Se refresca por polling.
+  const fetchActivo = useCallback(async () => {
+    try {
+      const a = await subastasApi.itemActivo(id);
+      setActiveItemId(a?.itemActivoId ?? null);
+      setSubEstado(a?.estado ?? null);
+    } catch { /* noop */ }
+  }, [id]);
+
+  useEffect(() => {
+    if (pendingVerification) return undefined;
+    fetchActivo();
+    const t = setInterval(fetchActivo, POLLING_MS);
+    return () => clearInterval(t);
+  }, [fetchActivo, pendingVerification]);
 
   const load = useCallback(async () => {
     if (pendingVerification) return;
@@ -151,6 +182,14 @@ export default function SubastaDetailScreen({ route, navigation }) {
   }, [id, pendingVerification]);
 
   useEffect(() => { if (!pendingVerification) load(); }, [load, pendingVerification]);
+
+  // Al cerrarse la subasta, recargar items una vez para reflejar vendidos/ganadores.
+  useEffect(() => {
+    if (subEstado === 'cerrada' && !cerradaRef.current) {
+      cerradaRef.current = true;
+      load();
+    }
+  }, [subEstado, load]);
 
   async function onJoin() {
     setJoining(true);
@@ -284,6 +323,8 @@ export default function SubastaDetailScreen({ route, navigation }) {
             index={index}
             subasta={subasta}
             joined={joined}
+            activeItemId={activeItemId}
+            subEstado={subEstado}
             onPress={() =>
               navigateWithReturnTo(navigation, 'ItemDetail', {
                 subastaId: id,
@@ -401,6 +442,24 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999,
   },
   liveBadgeText: { color: '#5F0656', fontSize: 9, fontWeight: '800', letterSpacing: 1.5 },
+  lotCardActive: { borderColor: '#16A34A', borderWidth: 2 },
+  activeBadge: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    backgroundColor: '#16A34A',
+    paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999,
+  },
+  activeDot: { width: 7, height: 7, borderRadius: 999, backgroundColor: '#FFFFFF' },
+  activeBadgeText: { color: '#FFFFFF', fontSize: 9, fontWeight: '800', letterSpacing: 1.5 },
+  waitBadge: {
+    backgroundColor: 'rgba(43,42,81,0.55)',
+    paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999,
+  },
+  waitBadgeText: { color: '#FFFFFF', fontSize: 9, fontWeight: '800', letterSpacing: 1.5 },
+  doneBadge: {
+    backgroundColor: '#2B2A51',
+    paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999,
+  },
+  doneBadgeText: { color: '#FFFFFF', fontSize: 9, fontWeight: '800', letterSpacing: 1.5 },
   lotNumBadge: {
     backgroundColor: 'rgba(249,245,255,0.92)',
     paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8,

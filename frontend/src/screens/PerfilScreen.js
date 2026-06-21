@@ -1,12 +1,12 @@
 import React, { useCallback, useState } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, RefreshControl,
-  TouchableOpacity, Animated,
+  TouchableOpacity, Animated, Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { MaterialIcons } from '@expo/vector-icons';
-import { clienteApi } from '../api/endpoints';
+import { clienteApi, subastasApi } from '../api/endpoints';
 import Loading from '../components/Loading';
 import ErrorView from '../components/ErrorView';
 import BottomNavBar from '../components/BottomNavBar';
@@ -68,6 +68,8 @@ export default function PerfilScreen({ navigation }) {
   const [perfil, setPerfil] = useState(null);
   const [pujas, setPujas] = useState([]);
   const [metricas, setMetricas] = useState(null);
+  const [subastaActiva, setSubastaActiva] = useState(null);
+  const [saliendo, setSaliendo] = useState(false);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
@@ -75,15 +77,26 @@ export default function PerfilScreen({ navigation }) {
   const load = useCallback(async () => {
     setError(null);
     try {
-      const [pr, pj, asistencias, victorias] = await Promise.all([
+      const [pr, pj, asistencias, victorias, mis] = await Promise.all([
         clienteApi.perfil(),
         clienteApi.misPujas(),
         clienteApi.asistenciasStats(),
         clienteApi.victoriasStats(),
+        clienteApi.misSubastas(),
       ]);
       setPerfil(pr);
       setPujas(pj || []);
       setMetricas({ asistencias, victorias });
+
+      // Subasta abierta a la que el usuario esta unido (solo puede ser una).
+      const abierta = (mis || []).find((m) => m.estado === 'abierta');
+      if (abierta) {
+        let detalle = null;
+        try { detalle = await subastasApi.getById(abierta.subastaId); } catch { /* sin detalle */ }
+        setSubastaActiva(detalle || { id: abierta.subastaId, estado: 'abierta' });
+      } else {
+        setSubastaActiva(null);
+      }
     } catch (err) {
       setError(err);
     } finally {
@@ -93,6 +106,19 @@ export default function PerfilScreen({ navigation }) {
   }, []);
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
+
+  const handleSalir = useCallback(async () => {
+    try {
+      setSaliendo(true);
+      await clienteApi.salir();
+      setSubastaActiva(null);
+      await load();
+    } catch (err) {
+      Alert.alert('No se pudo salir', err?.response?.data?.message || 'Intentá de nuevo.');
+    } finally {
+      setSaliendo(false);
+    }
+  }, [load]);
 
   if (loading) return <Loading text="Cargando tu cuenta..." />;
   if (error) return <ErrorView error={error} onRetry={() => { setLoading(true); load(); }} />;
@@ -153,6 +179,39 @@ export default function PerfilScreen({ navigation }) {
             </View>
           )}
         </View>
+
+        {/* Cartel de subasta en curso (solo si esta unido a una abierta) */}
+        {subastaActiva ? (
+          <View style={styles.liveBanner}>
+            <View style={styles.liveHeader}>
+              <View style={styles.liveDot} />
+              <Text style={styles.liveTitle}>Estás participando en una subasta</Text>
+            </View>
+            <Text style={styles.liveSubasta}>
+              Subasta #{subastaActiva.id}
+              {subastaActiva.categoria ? `   ·   ${String(subastaActiva.categoria).toUpperCase()}` : ''}
+            </Text>
+            <View style={styles.liveActions}>
+              <TouchableOpacity
+                style={styles.liveGoBtn}
+                activeOpacity={0.85}
+                onPress={() => navigation.navigate('SubastaDetail', { id: subastaActiva.id })}
+              >
+                <MaterialIcons name="gavel" size={18} color={p.white} />
+                <Text style={styles.liveGoText}>Ir a la subasta</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.liveLeaveBtn}
+                activeOpacity={0.85}
+                disabled={saliendo}
+                onPress={handleSalir}
+              >
+                <MaterialIcons name="logout" size={16} color={p.danger} />
+                <Text style={styles.liveLeaveText}>{saliendo ? 'Saliendo…' : 'Salir'}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        ) : null}
 
         {/* Stats */}
         <View style={styles.statsRow}>
@@ -312,6 +371,50 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   assetValue: { fontSize: 28, fontWeight: '900', color: p.text },
+
+  // Live banner (subasta en curso)
+  liveBanner: {
+    backgroundColor: p.primaryFaint,
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(8,70,237,0.25)',
+  },
+  liveHeader: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  liveDot: {
+    width: 9,
+    height: 9,
+    borderRadius: 999,
+    backgroundColor: p.success,
+  },
+  liveTitle: { fontSize: 13, fontWeight: '800', color: p.primary, letterSpacing: 0.2 },
+  liveSubasta: { fontSize: 18, fontWeight: '900', color: p.text, marginTop: 8 },
+  liveActions: { flexDirection: 'row', gap: 10, marginTop: 14 },
+  liveGoBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: p.primary,
+    paddingVertical: 12,
+    borderRadius: 12,
+  },
+  liveGoText: { color: p.white, fontWeight: '800', fontSize: 14 },
+  liveLeaveBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 12,
+    paddingHorizontal: 18,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: p.danger,
+    backgroundColor: p.surface,
+  },
+  liveLeaveText: { color: p.danger, fontWeight: '800', fontSize: 14 },
 
   // Stats
   statsRow: {

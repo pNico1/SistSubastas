@@ -43,6 +43,11 @@ public class SubastaController {
         return Map.of("estado", subastaService.getEstado(id));
     }
 
+    @GetMapping("/{id}/item-activo")
+    public ItemActivoDto getItemActivo(@PathVariable Integer id) {
+        return subastaService.getItemActivo(id);
+    }
+
     @GetMapping("/{id}/catalogo")
     public CatalogoDto getCatalogo(@PathVariable Integer id) {
         return subastaService.getCatalogo(id);

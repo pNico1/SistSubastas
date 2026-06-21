@@ -54,8 +54,10 @@ Para cerrar una subasta el backend escribe `'carrada'`.
 - **`registrosPendientes`** — registros de postores que aún no verificaron su
   email. Evita el dead-end de abandonar el registro antes de poner el código
   (ver más abajo). No tiene FK a tablas originales: la persona todavía no existe.
+- **`comprasEmpresa`** — piezas sin pujas que la empresa compra al precio base al
+  cerrarse el ítem. No hay cliente, por eso no entra en `registroDeSubasta`.
 
-Total: 16 originales + 6 satélites + 10 nuevas = **32 tablas**.
+Total: 16 originales + 6 satélites + 11 nuevas = **33 tablas**.
 
 
 ## Registro en dos fases (staging + binding por token)

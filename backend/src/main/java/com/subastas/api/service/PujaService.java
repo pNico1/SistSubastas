@@ -18,6 +18,7 @@ import java.util.List;
 public class PujaService {
 
     private final SubastaService subastaService;
+    private final SubastaTiempoService tiempoService;
     private final ClienteRepository clienteRepo;
     private final AsistenteRepository asistenteRepo;
     private final PujoRepository pujoRepo;
@@ -28,14 +29,17 @@ public class PujaService {
     private final SubastaRepository subastaRepo;
     private final NotificacionRepository notificacionRepo;
     private final UsuarioRepository usuarioRepo;
+    private final RegistroDeSubastaRepository registroRepo;
 
-    public PujaService(SubastaService subastaService, ClienteRepository clienteRepo,
+    public PujaService(SubastaService subastaService, SubastaTiempoService tiempoService,
+                       ClienteRepository clienteRepo,
                        AsistenteRepository asistenteRepo, PujoRepository pujoRepo,
                        MedioPagoRepository medioPagoRepo, ItemCatalogoRepository itemRepo,
                        CatalogoRepository catalogoRepo, ProductoRepository productoRepo,
                        SubastaRepository subastaRepo, NotificacionRepository notificacionRepo,
-                       UsuarioRepository usuarioRepo) {
+                       UsuarioRepository usuarioRepo, RegistroDeSubastaRepository registroRepo) {
         this.subastaService = subastaService;
+        this.tiempoService = tiempoService;
         this.clienteRepo = clienteRepo;
         this.asistenteRepo = asistenteRepo;
         this.pujoRepo = pujoRepo;
@@ -46,6 +50,7 @@ public class PujaService {
         this.subastaRepo = subastaRepo;
         this.notificacionRepo = notificacionRepo;
         this.usuarioRepo = usuarioRepo;
+        this.registroRepo = registroRepo;
     }
 
     @Transactional
@@ -55,8 +60,23 @@ public class PujaService {
         Integer clienteId = p.clienteId();
 
         Subasta subasta = subastaService.findSubasta(subastaId);
-        if (!"abierta".equals(subasta.getEstado())) {
-            throw ApiException.conflict(ErrorCodes.SUBASTA_CERRADA, "La subasta no esta abierta");
+
+        // El motor temporal decide la fase de la subasta y cual es el item activo.
+        SubastaTiempoService.Fase fase = tiempoService.materializar(subastaId);
+        switch (fase.estado()) {
+            case "programada" -> throw ApiException.conflict(ErrorCodes.SUBASTA_NOT_STARTED,
+                    "La subasta todavia no comenzo");
+            case "cerrada" -> throw ApiException.conflict(ErrorCodes.SUBASTA_CERRADA,
+                    "La subasta ya finalizo");
+            default -> { /* abierta */ }
+        }
+        if (fase.itemActivoId() == null) {
+            throw ApiException.conflict(ErrorCodes.ITEM_NOT_ACTIVE,
+                    "En este momento no se esta subastando ningun item; espera al proximo");
+        }
+        if (!fase.itemActivoId().equals(itemId)) {
+            throw ApiException.conflict(ErrorCodes.ITEM_NOT_ACTIVE,
+                    "Ese item no es el que se esta subastando ahora");
         }
 
         ItemCatalogo item = subastaService.findItemEnSubasta(subastaId, itemId);
@@ -81,6 +101,13 @@ public class PujaService {
         Pujo top = pujoRepo.findTopByItemOrderByImporteDesc(itemId).orElse(null);
         BigDecimal ofertaActual = (top != null) ? top.getImporte() : null;
 
+        // No tiene sentido pujarte a vos mismo: si ya tenes la oferta mas alta, no podes volver
+        // a pujar hasta que alguien te supere.
+        if (top != null && top.getAsistente().equals(asistente.getIdentificador())) {
+            throw ApiException.conflict(ErrorCodes.ALREADY_HIGHEST_BIDDER,
+                    "Ya tenes la oferta mas alta; espera a que alguien te supere para volver a pujar");
+        }
+
         PujaRules.Limites lim = PujaRules.calcular(item.getPrecioBase(), ofertaActual, subasta.getCategoria());
         if (importe.compareTo(lim.minima()) < 0) {
             throw ApiException.conflict(ErrorCodes.PUJA_TOO_LOW,
@@ -89,6 +116,25 @@ public class PujaService {
         if (lim.maxima() != null && importe.compareTo(lim.maxima()) > 0) {
             throw ApiException.conflict(ErrorCodes.PUJA_TOO_HIGH,
                     "La puja no puede superar " + lim.maxima());
+        }
+
+        // Regla de garantia: si el cliente respalda sus compras con una garantia
+        // (ej. cheque certificado con montoGarantia), el total de sus adquisiciones
+        // mas esta puja no puede superar el monto garantizado. Si no tiene garantia
+        // (monto en null/0), no aplica tope.
+        BigDecimal garantia = medioPagoRepo.findByCliente(clienteId).stream()
+                .map(MedioPago::getMontoGarantia)
+                .filter(g -> g != null)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        if (garantia.compareTo(BigDecimal.ZERO) > 0) {
+            BigDecimal comprometido = registroRepo.findByCliente(clienteId).stream()
+                    .map(RegistroDeSubasta::getImporte)
+                    .filter(i -> i != null)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+            if (comprometido.add(importe).compareTo(garantia) > 0) {
+                throw ApiException.conflict(ErrorCodes.GARANTIA_EXCEDIDA,
+                        "La puja supera tu monto de garantia disponible (" + garantia + ")");
+            }
         }
 
         Pujo pujo = new Pujo();
@@ -137,6 +183,17 @@ public class PujaService {
         }
         if (asistenteRepo.findByClienteAndSubasta(clienteId, req.subastaId()).isPresent()) {
             throw ApiException.conflict(ErrorCodes.ALREADY_JOINED, "Ya estas unido a esta subasta");
+        }
+
+        // Un usuario no puede estar conectado a mas de una subasta abierta a la vez
+        // (enunciado: "los usuarios no pueden estar conectados en mas de una a la vez").
+        boolean enOtraAbierta = asistenteRepo.findByCliente(clienteId).stream()
+                .anyMatch(a -> !a.getSubasta().equals(req.subastaId())
+                        && subastaRepo.findById(a.getSubasta())
+                                .map(s -> "abierta".equals(s.getEstado())).orElse(false));
+        if (enOtraAbierta) {
+            throw ApiException.conflict(ErrorCodes.ALREADY_IN_ANOTHER_AUCTION,
+                    "Ya estas conectado a otra subasta abierta; sali de ella antes de unirte a esta");
         }
 
         int numeroPostor = asistenteRepo.findTopBySubastaOrderByNumeroPostorDesc(req.subastaId())

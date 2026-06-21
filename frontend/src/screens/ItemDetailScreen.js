@@ -6,7 +6,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialIcons } from '@expo/vector-icons';
-import { subastasApi } from '../api/endpoints';
+import { subastasApi, clienteApi } from '../api/endpoints';
 import { POLLING_MS } from '../config';
 import { useAuth } from '../context/AuthContext';
 import Loading from '../components/Loading';
@@ -34,7 +34,10 @@ const p = {
 export default function ItemDetailScreen({ route }) {
   const { user } = useAuth();
   const insets = useSafeAreaInsets();
-  const { subastaId, itemId, nombre, joined } = route.params;
+  const { subastaId, itemId, nombre } = route.params;
+  // El flag 'joined' que llega por params puede estar desactualizado (ej: te uniste
+  // en otra pantalla). Se usa como valor inicial y se revalida contra el backend.
+  const [joined, setJoined] = useState(route.params.joined ?? false);
   const [oferta, setOferta] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -42,6 +45,10 @@ export default function ItemDetailScreen({ route }) {
   const [importeError, setImporteError] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [fotos, setFotos] = useState([]);
+  const [itemActivoId, setItemActivoId] = useState(null);
+  const [subEstado, setSubEstado] = useState(null);
+  const [segundos, setSegundos] = useState(null);
+  const [ventana, setVentana] = useState(30);
   const importeTocado = useRef(false);
   const pendingVerification = user?.estado === 'pending_verification';
 
@@ -74,6 +81,48 @@ export default function ItemDetailScreen({ route }) {
       .catch(() => setFotos([]));
   }, [subastaId, itemId]);
 
+  // Revalida la union real contra el backend, por si el param venia desactualizado.
+  useEffect(() => {
+    let alive = true;
+    clienteApi.misSubastas()
+      .then((list) => {
+        if (alive) setJoined((list || []).some((m) => Number(m.subastaId) === Number(subastaId)));
+      })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, [subastaId]);
+
+  // Item activo + segundos de inactividad restantes (motor temporal).
+  const fetchItemActivo = useCallback(async () => {
+    try {
+      const data = await subastasApi.itemActivo(subastaId);
+      setItemActivoId(data?.itemActivoId ?? null);
+      setSubEstado(data?.estado ?? null);
+      setVentana(Number(data?.ventanaSeg) || 30);
+      if (Number(data?.itemActivoId) === Number(itemId) && data?.segundosRestantes != null) {
+        setSegundos(Number(data.segundosRestantes));
+      } else {
+        setSegundos(null);
+      }
+    } catch { /* noop */ }
+  }, [subastaId, itemId]);
+
+  useEffect(() => {
+    if (pendingVerification) return undefined;
+    fetchItemActivo();
+    const t = setInterval(fetchItemActivo, POLLING_MS);
+    return () => clearInterval(t);
+  }, [fetchItemActivo, pendingVerification]);
+
+  // Tick local de 1s para que la barra baje suave entre polls.
+  useEffect(() => {
+    if (segundos == null) return undefined;
+    const t = setInterval(() => {
+      setSegundos((s) => (s == null ? s : Math.max(0, s - 1)));
+    }, 1000);
+    return () => clearInterval(t);
+  }, [segundos == null]);
+
   function validar(valor) {
     const n = parseFloat(valor);
     if (!valor || isNaN(n)) return 'Ingresá un importe válido';
@@ -94,6 +143,7 @@ export default function ItemDetailScreen({ route }) {
       Alert.alert('Puja realizada', `Ofertaste ${importe}. Quedás como mejor postor.`);
       importeTocado.current = false;
       await fetchOferta();
+      await fetchItemActivo();
     } catch (e) {
       Alert.alert('No se pudo pujar', e.message || 'Error al registrar la puja');
       await fetchOferta();
@@ -117,6 +167,11 @@ export default function ItemDetailScreen({ route }) {
   if (error && !oferta) return <ErrorView error={error} onRetry={() => { setLoading(true); fetchOferta(); }} />;
 
   const tieneOferta = oferta.ofertaActual != null;
+  const esActivo = itemActivoId != null && Number(itemActivoId) === Number(itemId);
+  const ratio = Math.min(1, Math.max(0, (segundos || 0) / (ventana || 30)));
+  const barColor = segundos != null && segundos <= 5 ? p.danger
+    : segundos != null && segundos <= 10 ? p.warning
+    : p.success;
 
   return (
     <ScrollView
@@ -179,6 +234,34 @@ export default function ItemDetailScreen({ route }) {
           </View>
         </View>
       </View>
+
+      {/* Barra de inactividad del item activo */}
+      {esActivo && segundos != null ? (
+        <View style={styles.timerCard}>
+          <View style={styles.timerHeader}>
+            <MaterialIcons name="timer" size={15} color={barColor} />
+            <Text style={[styles.timerLabel, { color: barColor }]}>
+              Cierra en {segundos}s por inactividad
+            </Text>
+          </View>
+          <View style={styles.timerTrack}>
+            <View style={[styles.timerFill, { width: `${ratio * 100}%`, backgroundColor: barColor }]} />
+          </View>
+          <Text style={styles.timerHint}>Cada nueva puja reinicia el contador.</Text>
+        </View>
+      ) : subEstado === 'cerrada' ? (
+        <View style={styles.estadoPill}>
+          <MaterialIcons name="lock" size={15} color={p.danger} />
+          <Text style={[styles.estadoPillText, { color: p.danger }]}>La subasta finalizó</Text>
+        </View>
+      ) : itemActivoId != null && !esActivo ? (
+        <View style={styles.estadoPill}>
+          <MaterialIcons name="hourglass-empty" size={15} color={p.warning} />
+          <Text style={[styles.estadoPillText, { color: p.warning }]}>
+            Este lote todavía no se está subastando
+          </Text>
+        </View>
+      ) : null}
 
       {/* Polling hint */}
       <View style={styles.liveHint}>
@@ -295,6 +378,25 @@ const styles = StyleSheet.create({
   // Live hint
   liveHint: { flexDirection: 'row', alignItems: 'center', gap: 5, justifyContent: 'center', marginBottom: 20 },
   liveHintText: { fontSize: 12, color: p.muted, fontWeight: '600' },
+
+  // Barra de inactividad
+  timerCard: {
+    backgroundColor: p.surface, borderRadius: 14, padding: 16, marginBottom: 12,
+    borderWidth: 1, borderColor: p.border,
+  },
+  timerHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10 },
+  timerLabel: { fontSize: 13, fontWeight: '800' },
+  timerTrack: {
+    height: 8, borderRadius: 999, backgroundColor: p.container, overflow: 'hidden',
+  },
+  timerFill: { height: 8, borderRadius: 999 },
+  timerHint: { fontSize: 11, color: p.muted, marginTop: 8 },
+  estadoPill: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    backgroundColor: p.surface, borderRadius: 12, padding: 14, marginBottom: 12,
+    borderWidth: 1, borderColor: p.border,
+  },
+  estadoPillText: { fontSize: 13, fontWeight: '700' },
 
   // Aviso
   aviso: {

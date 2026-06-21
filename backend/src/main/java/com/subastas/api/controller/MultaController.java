@@ -1,6 +1,8 @@
 package com.subastas.api.controller;
 
+import com.subastas.api.common.dto.MessageResponse;
 import com.subastas.api.dto.MultaDto;
+import com.subastas.api.dto.PagoMultaRequest;
 import com.subastas.api.service.MultaService;
 import org.springframework.web.bind.annotation.*;
 
@@ -24,5 +26,10 @@ public class MultaController {
     @GetMapping("/{id}")
     public MultaDto getById(@PathVariable Integer id) {
         return service.getById(id);
+    }
+
+    @PostMapping("/{id}/payment")
+    public MessageResponse pagar(@PathVariable Integer id, @RequestBody PagoMultaRequest req) {
+        return service.pagar(id, req);
     }
 }

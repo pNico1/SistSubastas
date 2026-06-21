@@ -1,46 +1,55 @@
 server:
-  port: 8080
+  # Railway asigna el puerto dinámicamente mediante la variable PORT.
+  # Si no existe (entorno local), cae en el fallback de 8080.
+  port: ${PORT:8080}
 
 spring:
   config:
     import:
       - optional:file:.env[.properties]
       - optional:file:backend/.env[.properties]
-
   application:
     name: subastas-api
-
   datasource:
-    url: jdbc:mysql://localhost:3306/subastas?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=America/Argentina/Buenos_Aires
-    username: root
-    password: 1234r
-    driver-class-name: com.mysql.cj.jdbc.Driver
-
+    # 1. Se usan las variables exactas que inyecta el servicio MySQL/MariaDB de Railway.
+    # 2. Se mantienen tus fallbacks locales (IP 192.168.0.37 y puerto 3306) para que te siga andando en tu casa.
+    # 3. Cambiado a driver de MariaDB con los parámetros que ya tenías.
+    url: jdbc:mariadb://${MYSQLHOST:192.168.0.37}:${MYSQLPORT:3306}/${MYSQLDATABASE:subastas}?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=America/Argentina/Buenos_Aires
+    username: ${MYSQLUSER:subastas_app}
+    password: ${MYSQLPASSWORD:1234}
+    driver-class-name: org.mariadb.jdbc.Driver
   jpa:
     hibernate:
-      ddl-auto: none
+      ddl-auto: none           # Se mantiene: el esquema lo maneja tu 01_schema.sql.
       naming:
         physical-strategy: org.hibernate.boot.model.naming.PhysicalNamingStrategyStandardImpl
     properties:
       hibernate:
-        dialect: org.hibernate.dialect.MySQLDialect
+        dialect: org.hibernate.dialect.MariaDBDialect
         format_sql: true
+        # Hibernate lee/escribe los timestamps (DATETIME) en UTC, sin importar la
+        # zona del server ni de la sesion de la base.
+        jdbc:
+          time_zone: UTC
     open-in-view: false
-
+  jackson:
+    # Serializa fechas como ISO-8601 (no epoch) y en UTC.
+    time-zone: UTC
+    serialization:
+      write-dates-as-timestamps: false
   servlet:
     multipart:
       max-file-size: 10MB
       max-request-size: 12MB
 
+# Configuracion propia de la app
 app:
   jwt:
     secret: ${JWT_SECRET:clave-super-secreta-de-al-menos-32-bytes-para-HS256}
     access-token-minutes: 30
     refresh-token-days: 7
-
   cors:
-    allowed-origins: "*"
-
+    allowed-origins: "*"     # Recordá cambiar esto si el front va a estar hosteado en otro dominio público
   email:
     provider: ${MAIL_PROVIDER:dev}
     api-key: ${MAILTRAP_API_KEY:${RESEND_API_KEY:}}

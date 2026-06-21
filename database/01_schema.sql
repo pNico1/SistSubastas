@@ -457,6 +457,23 @@ CREATE TABLE pagos (
     CONSTRAINT fk_pagos_mediosPago FOREIGN KEY (medioPago)   REFERENCES mediosPago (id)
 );
 
+-- comprasEmpresa: piezas sin pujas que, al cerrar el item, compra la empresa al
+-- precio base (regla del enunciado). No hay cliente: queda fuera de registroDeSubasta.
+CREATE TABLE comprasEmpresa (
+    id         INT           NOT NULL AUTO_INCREMENT,
+    subasta    INT           NOT NULL,
+    producto   INT           NOT NULL,
+    duenio     INT           NOT NULL,
+    precioBase DECIMAL(18,2) NOT NULL,
+    comision   DECIMAL(18,2) NULL,
+    fecha      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT pk_comprasEmpresa PRIMARY KEY (id),
+    CONSTRAINT uq_comprasEmpresa UNIQUE (subasta, producto),
+    CONSTRAINT fk_comprasEmpresa_subasta  FOREIGN KEY (subasta)  REFERENCES subastas (identificador),
+    CONSTRAINT fk_comprasEmpresa_producto FOREIGN KEY (producto) REFERENCES productos (identificador),
+    CONSTRAINT fk_comprasEmpresa_duenio   FOREIGN KEY (duenio)   REFERENCES duenios (identificador)
+);
+
 -- registrosPendientes: registros de postores que AUN NO verificaron su email.
 --  No se crea nada en personas/usuarios/clientes hasta que el usuario ingresa el
 --  codigo. Cada registro es una fila propia identificada por un 'token' opaco
