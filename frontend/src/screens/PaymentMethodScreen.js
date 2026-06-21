@@ -17,6 +17,7 @@ const palette = {
   text: '#2B2A51',
   muted: '#8B88A8',
   border: '#ECE8FF',
+  danger: '#FF748D',
 };
 
 const options = [
@@ -67,7 +68,7 @@ export default function PaymentMethodScreen({ route, navigation }) {
             <Text style={styles.backArrow}>{'<'}</Text>
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Payment Method</Text>
-          <View style={{ width: 34 }} />
+          <View style={{ width: 42 }} />
         </View>
 
         <Text style={styles.title}>Metodo de Pago</Text>
@@ -118,19 +119,19 @@ const styles = StyleSheet.create({
     marginBottom: 40,
   },
   backButton: {
-    width: 34,
+    width: 42,
     height: 34,
-    borderRadius: 9,
-    borderWidth: 2,
-    borderColor: palette.primary,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: palette.danger,
     alignItems: 'center',
     justifyContent: 'center',
   },
   backArrow: {
-    color: palette.primary,
-    fontSize: 20,
-    lineHeight: 22,
-    fontWeight: '900',
+    color: palette.text,
+    fontSize: 22,
+    lineHeight: 24,
+    fontWeight: '800',
   },
   headerTitle: { color: palette.text, fontSize: 13, fontWeight: '900' },
   title: {

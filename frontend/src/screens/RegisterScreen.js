@@ -392,14 +392,14 @@ export default function RegisterScreen({ navigation }) {
                   label="NOMBRE"
                   value={form.nombre}
                   onChangeText={(v) => set('nombre', v)}
-                  placeholder="ej. Julián"
+                  placeholder=""
                   error={errors.nombre}
                 />
                 <Field
                   label="APELLIDO"
                   value={form.apellido}
                   onChangeText={(v) => set('apellido', v)}
-                  placeholder="ej. Avery"
+                  placeholder=""
                   error={errors.apellido}
                 />
                 <Field
@@ -623,7 +623,12 @@ const styles = StyleSheet.create({
   retry: { color: p.primary, fontWeight: '700', marginTop: -6, marginBottom: 14, fontSize: 13 },
 
   checkLabel: { color: p.text, fontSize: 14, lineHeight: 20 },
-  link: { color: p.primary, fontWeight: '800', textDecorationLine: 'underline' },
+  link: {
+  color: p.primary,
+  fontWeight: '800',
+  borderBottomWidth: 1.5,
+  borderBottomColor: p.primary,
+},
 
   infoBadge: {
     flexDirection: 'row', alignItems: 'center', gap: 14,

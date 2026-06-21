@@ -2,7 +2,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { authApi } from '../api/endpoints';
 import { setAuthToken, setOnUnauthorized } from '../api/client';
-import { resetToLogin } from '../navigationRef';
+import { resetToLogin, navigationRef } from '../navigationRef';
 
 const AuthContext = createContext(null);
 
@@ -15,7 +15,6 @@ export function AuthProvider({ children }) {
   const [booting, setBooting] = useState(true);
   const [paymentSetupPending, setPaymentSetupPending] = useState(false);
 
-  // Restaurar sesion guardada al abrir la app.
   useEffect(() => {
     (async () => {
       try {
@@ -28,13 +27,12 @@ export function AuthProvider({ children }) {
             usuario = await authApi.me();
           } catch (err) {
             if (err?.status === 401) {
-              // Token vencido/invalido: limpiamos la sesion y arrancamos como invitado.
               setAuthToken(null);
               await AsyncStorage.removeItem(STORAGE_KEY);
               await AsyncStorage.removeItem(PAYMENT_SETUP_KEY);
               return;
             }
-            usuario = saved.usuario; // error de red: toleramos modo offline
+            usuario = saved.usuario;
           }
           const hydrated = { ...saved, usuario };
           setTokens(hydrated);
@@ -51,7 +49,6 @@ export function AuthProvider({ children }) {
     })();
   }, []);
 
-  // Si una llamada autenticada devuelve 401 (token vencido), cerramos sesion y vamos a Login.
   useEffect(() => {
     setOnUnauthorized(() => {
       logout().finally(() => setTimeout(resetToLogin, 0));
@@ -59,9 +56,6 @@ export function AuthProvider({ children }) {
     return () => setOnUnauthorized(null);
   }, []);
 
-  // Aplica una respuesta de tokens (login o registro completado): guarda en
-  // memoria + estado + AsyncStorage. Al setear el usuario, el navigator pasa
-  // automaticamente del stack de auth al de la app.
   async function applySession(data, userExtras = {}, options = {}) {
     setAuthToken(data.accessToken);
     setTokens(data);
@@ -82,21 +76,25 @@ export function AuthProvider({ children }) {
     return applySession(data, extras);
   }
 
-  // Etapa 1 del registro: crea la solicitud y devuelve la clave provisoria.
-  // No inicia sesion: la cuenta queda pendiente de verificacion del admin.
   async function register(form) {
     return authApi.register(form);
   }
 
-  // Etapa final: cambia la clave provisoria por una propia cuando el admin ya aprobo la cuenta.
   async function completeRegistration(password, passwordConfirmation) {
     const data = await authApi.completeRegistration(password, passwordConfirmation);
     return applySession(data, {}, { paymentSetupPending: true });
   }
 
+  // FIX: limpia el flag y resetea la navegación a Bidster (home) para que
+  // el stack quede limpio y el usuario pueda navegar normalmente desde ahí.
   async function finishPaymentSetup() {
     setPaymentSetupPending(false);
     await AsyncStorage.removeItem(PAYMENT_SETUP_KEY);
+    setTimeout(() => {
+      if (navigationRef?.isReady?.()) {
+        navigationRef.reset({ index: 0, routes: [{ name: 'Bidster' }] });
+      }
+    }, 0);
   }
 
   async function refreshUser() {

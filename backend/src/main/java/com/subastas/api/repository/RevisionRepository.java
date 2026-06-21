@@ -8,4 +8,5 @@ import java.util.List;
 public interface RevisionRepository extends JpaRepository<Revision, Integer> {
     List<Revision> findByEstado(String estado);
     List<Revision> findByProducto(Integer producto);
+    java.util.Optional<Revision> findFirstByProductoAndEstadoOrderByFechaDesc(Integer producto, String estado);
 }

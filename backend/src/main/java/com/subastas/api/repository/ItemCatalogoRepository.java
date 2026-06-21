@@ -9,4 +9,5 @@ import java.util.Optional;
 public interface ItemCatalogoRepository extends JpaRepository<ItemCatalogo, Integer> {
     List<ItemCatalogo> findByCatalogo(Integer catalogo);
     Optional<ItemCatalogo> findByCatalogoAndProducto(Integer catalogo, Integer producto);
+    Optional<ItemCatalogo> findFirstByProducto(Integer producto);
 }

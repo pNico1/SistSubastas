@@ -25,11 +25,24 @@ import SubastaDetailScreen from './src/screens/SubastaDetailScreen';
 import ItemDetailScreen from './src/screens/ItemDetailScreen';
 import PerfilScreen from './src/screens/PerfilScreen';
 import OfrecerBienScreen from './src/screens/OfrecerBienScreen';
+import NotificacionesScreen from './src/screens/NotificacionesScreen';
+import MisProductosScreen from './src/screens/MisProductosScreen';
+import ProductoDetailScreen from './src/screens/ProductoDetailScreen';
+import MotivoRechazoScreen from './src/screens/MotivoRechazoScreen';
+import AceptarTerminosScreen from './src/screens/AceptarTerminosScreen';
+import DevolucionScreen from './src/screens/DevolucionScreen';
+import UpgradeSeguroScreen from './src/screens/UpgradeSeguroScreen';
+// ---- Área 3: perfil y métricas ----
+import EditarPerfilScreen from './src/screens/EditarPerfilScreen';
+import MetricasScreen from './src/screens/MetricasScreen';
+import HistorialSubastasScreen from './src/screens/HistorialSubastasScreen';
+// ---- fin Área 3 ----
 import { colors } from './src/theme';
 import BidsterScreen from './src/screens/BidsterScreen';
 import PujasScreen from './src/screens/PujasScreen';
 import { navigationRef } from './src/navigationRef';
 import { goBackOrReturnTo, navigateWithReturnTo } from './src/navigationUtils';
+
 const Stack = createNativeStackNavigator();
 
 const navHeader = {
@@ -61,7 +74,6 @@ function HeaderBackButton({ navigation, route }) {
   );
 }
 
-// Acciones del header de Subastas: ofrecer un bien + salir.
 function HeaderRightActions({ navigation }) {
   const { user, logout } = useAuth();
   const pendingVerification = user?.estado === 'pending_verification';
@@ -91,80 +103,30 @@ function RootNavigator() {
       <Stack.Navigator screenOptions={navHeader}>
         {!user ? (
           <>
-            {/* Home publico (browse-first): feed + explorar accesibles sin sesion */}
             <Stack.Screen name="Bidster" component={BidsterScreen} options={{ headerShown: false }} />
             <Stack.Screen name="Pujas" component={PujasScreen} options={{ headerShown: false }} />
             <Stack.Screen name="Login" component={LoginScreen} options={{ headerShown: false }} />
-            <Stack.Screen
-              name="Register"
-              component={RegisterScreen}
-              options={{ headerShown: false }}
-            />
-            <Stack.Screen
-              name="VerifyEmail"
-              component={VerifyEmailScreen}
-              options={{ headerShown: false }}
-            />
-            <Stack.Screen
-              name="RegisterSuccess"
-              component={RegisterSuccessScreen}
-              options={{ headerShown: false }}
-            />
+            <Stack.Screen name="Register" component={RegisterScreen} options={{ headerShown: false }} />
+            <Stack.Screen name="VerifyEmail" component={VerifyEmailScreen} options={{ headerShown: false }} />
+            <Stack.Screen name="RegisterSuccess" component={RegisterSuccessScreen} options={{ headerShown: false }} />
           </>
         ) : needsPassword ? (
           <>
-            <Stack.Screen
-              name="AccountVerified"
-              component={AccountVerifiedScreen}
-              options={{ headerShown: false }}
-            />
-            <Stack.Screen
-              name="RegisterComplete"
-              component={RegisterCompleteScreen}
-              options={{ headerShown: false }}
-            />
+            <Stack.Screen name="AccountVerified" component={AccountVerifiedScreen} options={{ headerShown: false }} />
+            <Stack.Screen name="RegisterComplete" component={RegisterCompleteScreen} options={{ headerShown: false }} />
           </>
         ) : needsPaymentSetup ? (
           <>
-            <Stack.Screen
-              name="PaymentMethod"
-              component={PaymentMethodScreen}
-              options={{ headerShown: false }}
-            />
-            <Stack.Screen
-              name="BankAccountStep1"
-              component={BankAccountStep1Screen}
-              options={{ headerShown: false }}
-            />
-            <Stack.Screen
-              name="BankAccountStep2"
-              component={BankAccountStep2Screen}
-              options={{ headerShown: false }}
-            />
-            <Stack.Screen
-              name="CreditCardPayment"
-              component={CreditCardPaymentScreen}
-              options={{ headerShown: false }}
-            />
-            <Stack.Screen
-              name="CheckPayment"
-              component={CheckPaymentScreen}
-              options={{ headerShown: false }}
-            />
+            <Stack.Screen name="PaymentMethod" component={PaymentMethodScreen} options={{ headerShown: false }} />
+            <Stack.Screen name="BankAccountStep1" component={BankAccountStep1Screen} options={{ headerShown: false }} />
+            <Stack.Screen name="BankAccountStep2" component={BankAccountStep2Screen} options={{ headerShown: false }} />
+            <Stack.Screen name="CreditCardPayment" component={CreditCardPaymentScreen} options={{ headerShown: false }} />
+            <Stack.Screen name="CheckPayment" component={CheckPaymentScreen} options={{ headerShown: false }} />
           </>
         ) : (
           <>
-            {/* Home autenticado: feed visual (BidsterScreen) */}
-            <Stack.Screen
-              name="Bidster"
-              component={BidsterScreen}
-              options={{ headerShown: false }}
-            />
-            <Stack.Screen
-              name="Pujas"
-              component={PujasScreen}
-              options={{ headerShown: false }}
-            />
+            <Stack.Screen name="Bidster" component={BidsterScreen} options={{ headerShown: false }} />
+            <Stack.Screen name="Pujas" component={PujasScreen} options={{ headerShown: false }} />
             <Stack.Screen
               name="Subastas"
               component={SubastasListScreen}
@@ -181,12 +143,18 @@ function RootNavigator() {
             <Stack.Screen
               name="SubastaDetail"
               component={SubastaDetailScreen}
-              options={{ title: 'Detalle de subasta' }}
+              options={({ navigation, route }) => ({
+                title: 'Detalle de subasta',
+                headerLeft: () => <HeaderBackButton navigation={navigation} route={route} />,
+              })}
             />
             <Stack.Screen
               name="ItemDetail"
               component={ItemDetailScreen}
-              options={{ title: 'Pujar' }}
+              options={({ navigation, route }) => ({
+                title: 'Pujar',
+                headerLeft: () => <HeaderBackButton navigation={navigation} route={route} />,
+              })}
             />
             <Stack.Screen
               name="Perfil"
@@ -196,36 +164,33 @@ function RootNavigator() {
                 headerLeft: () => <HeaderBackButton navigation={navigation} route={route} />,
               })}
             />
+
+            {/* Notificaciones */}
             <Stack.Screen
-              name="PaymentMethods"
-              component={PaymentMethodsScreen}
+              name="Notificaciones"
+              component={NotificacionesScreen}
               options={{ headerShown: false }}
             />
-            <Stack.Screen
-              name="PaymentMethod"
-              component={PaymentMethodScreen}
-              options={{ headerShown: false }}
-            />
-            <Stack.Screen
-              name="BankAccountStep1"
-              component={BankAccountStep1Screen}
-              options={{ headerShown: false }}
-            />
-            <Stack.Screen
-              name="BankAccountStep2"
-              component={BankAccountStep2Screen}
-              options={{ headerShown: false }}
-            />
-            <Stack.Screen
-              name="CreditCardPayment"
-              component={CreditCardPaymentScreen}
-              options={{ headerShown: false }}
-            />
-            <Stack.Screen
-              name="CheckPayment"
-              component={CheckPaymentScreen}
-              options={{ headerShown: false }}
-            />
+
+            {/* Área 3: perfil, historial y métricas */}
+            <Stack.Screen name="EditarPerfil" component={EditarPerfilScreen} options={{ headerShown: false }} />
+            <Stack.Screen name="Metricas" component={MetricasScreen} options={{ headerShown: false }} />
+            <Stack.Screen name="HistorialSubastas" component={HistorialSubastasScreen} options={{ headerShown: false }} />
+
+            {/* Área 2: dueño / producto / revisión / seguros */}
+            <Stack.Screen name="MisProductos" component={MisProductosScreen} options={{ headerShown: false }} />
+            <Stack.Screen name="ProductoDetail" component={ProductoDetailScreen} options={{ headerShown: false }} />
+            <Stack.Screen name="MotivoRechazo" component={MotivoRechazoScreen} options={{ headerShown: false }} />
+            <Stack.Screen name="AceptarTerminos" component={AceptarTerminosScreen} options={{ headerShown: false }} />
+            <Stack.Screen name="Devolucion" component={DevolucionScreen} options={{ headerShown: false }} />
+            <Stack.Screen name="UpgradeSeguro" component={UpgradeSeguroScreen} options={{ headerShown: false }} />
+
+            <Stack.Screen name="PaymentMethods" component={PaymentMethodsScreen} options={{ headerShown: false }} />
+            <Stack.Screen name="PaymentMethod" component={PaymentMethodScreen} options={{ headerShown: false }} />
+            <Stack.Screen name="BankAccountStep1" component={BankAccountStep1Screen} options={{ headerShown: false }} />
+            <Stack.Screen name="BankAccountStep2" component={BankAccountStep2Screen} options={{ headerShown: false }} />
+            <Stack.Screen name="CreditCardPayment" component={CreditCardPaymentScreen} options={{ headerShown: false }} />
+            <Stack.Screen name="CheckPayment" component={CheckPaymentScreen} options={{ headerShown: false }} />
             <Stack.Screen
               name="OfrecerBien"
               component={OfrecerBienScreen}

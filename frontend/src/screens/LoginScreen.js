@@ -188,7 +188,7 @@ export default function LoginScreen({ navigation }) {
               autoCapitalize="none"
               autoCorrect={false}
               keyboardType="email-address"
-              placeholder="nombre@ejemplo.com"
+              placeholder=""
               placeholderTextColor={palette.placeholder}
               style={[styles.input, emailFocused && styles.inputFocused]}
             />
@@ -222,7 +222,7 @@ export default function LoginScreen({ navigation }) {
               hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
               style={styles.eyeButton}
             >
-              <Text style={styles.eyeIcon}>{showPassword ? '🙈' : '👁'}</Text>
+              <Text style={styles.eyeIcon}>{showPassword ? '' : '👁'}</Text>
             </TouchableOpacity>
           </View>
           {errors.password ? (

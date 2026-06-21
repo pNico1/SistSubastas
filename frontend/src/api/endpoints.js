@@ -40,6 +40,10 @@ export const subastasApi = {
     client.get(`/api/subastas/${id}/items/${itemId}/pujas`).then((r) => r.data),
   pujar: (id, itemId, importe) =>
     client.post(`/api/subastas/${id}/items/${itemId}/pujas`, { importe }).then((r) => r.data),
+  // ---- Área 3: fotos del item ----
+  getItemPhotos: (id, itemId) =>
+    client.get(`/api/subastas/${id}/items/${itemId}/photos`).then((r) => r.data),
+  // ---- fin Área 3 ----
 };
 
 // ---- PAISES ----
@@ -55,11 +59,32 @@ export const productosApi = {
   // data: { descripcionCatalogo, descripcionCompleta, nombreArtista, fechaObra,
   //         historia, terminosAceptados, fotos: [base64...] }
   crear: (data) => client.post('/api/clientes/me/productos', data).then((r) => r.data),
+
+  // ---- Área 2: dueño / revisión / seguros ----
+  getRejectMotive: (id) =>
+    client.get(`/api/clientes/me/productos/${id}/rejectMotive`).then((r) => r.data),
+  updateTerminos: (id, aceptados) =>
+    client.patch(`/api/clientes/me/productos/${id}/terminos`, { aceptados }).then((r) => r.data),
+  getDevolucion: (id) =>
+    client.get(`/api/clientes/me/productos/${id}/devolucion`).then((r) => r.data),
+  getSeguros: (id) =>
+    client.get(`/api/clientes/me/productos/${id}/seguros`).then((r) => r.data),
+  requestUpgradeSeguro: (id, data) =>
+    client.patch(`/api/clientes/me/productos/${id}/seguros`, data).then((r) => r.data),
 };
 
 // ---- CLIENTE (me) ----
 export const clienteApi = {
   perfil: () => client.get('/api/clientes/me').then((r) => r.data),
+  // ---- Área 3: perfil y métricas ----
+  actualizarPerfil: (data) => client.put('/api/clientes/me', data).then((r) => r.data),
+  asistencias: () => client.get('/api/clientes/me/asistencias').then((r) => r.data),
+  asistenciasStats: () => client.get('/api/clientes/me/asistencias/estadisticas').then((r) => r.data),
+  historialSubastas: () => client.get('/api/clientes/me/subastas', { params: { historial: true } }).then((r) => r.data),
+  victorias: () => client.get('/api/clientes/me/victorias').then((r) => r.data),
+  victoriasStats: () => client.get('/api/clientes/me/victorias/estadisticas').then((r) => r.data),
+  pujasStats: () => client.get('/api/clientes/me/pujas/estadisticas').then((r) => r.data),
+  // ---- fin Área 3 ----
   misSubastas: () => client.get('/api/clientes/me/subastas').then((r) => r.data),
   unirse: (subastaId) =>
     client.post('/api/clientes/me/unirse', { subastaId }).then((r) => r.data),
@@ -71,11 +96,17 @@ export const clienteApi = {
     client.post('/api/clientes/me/metodos-pago', data).then((r) => r.data),
   eliminarMetodoPago: (id) =>
     client.delete(`/api/clientes/me/metodos-pago/${id}`).then((r) => r.data),
+  // NOTIFICACIONES: listar y marcar como leída (PATCH /read)
   notificaciones: () => client.get('/api/clientes/me/notifications').then((r) => r.data),
+  marcarNotificacionLeida: (id) =>
+    client.patch(`/api/clientes/me/notifications/${id}/read`).then((r) => r.data),
 };
 
 // ---- ADMIN (segun contrato del PDF) ----
 export const adminApi = {
+  // ---- Área 2: catálogos paginados ----
+  listarCatalogos: (params = {}) => client.get('/api/admin/catalogos', { params }).then((r) => r.data),
+  // ---- fin Área 2 ----
   verificarCliente: (id, data = {}) => client.put(`/api/admin/clientes/${id}/verificar`, data).then((r) => r.data),
   verificarMetodoPago: (id) => client.put(`/api/admin/metodos-pago/${id}/verificar`).then((r) => r.data),
 
@@ -115,3 +146,11 @@ export const adminApi = {
   aprobarRevision: (id, data = {}) => client.put(`/api/admin/revisiones/${id}/aprobar`, data).then((r) => r.data),
   rechazarRevision: (id, data = {}) => client.put(`/api/admin/revisiones/${id}/rechazar`, data).then((r) => r.data),
 };
+
+// ---- Área 2: consulta pública de productos ----
+export const productosPublicosApi = {
+  getById: (id) => client.get(`/api/productos/${id}`).then((r) => r.data),
+  fotos: (id) => client.get(`/api/productos/${id}/fotos`).then((r) => r.data),
+  filtrar: (params = {}) => client.get('/api/productos', { params }).then((r) => r.data),
+};
+// ---- fin Área 2 ----

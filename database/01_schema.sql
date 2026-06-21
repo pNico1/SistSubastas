@@ -314,6 +314,34 @@ CREATE TABLE revisiones (
     CONSTRAINT fk_revisiones_empleados FOREIGN KEY (revisor)  REFERENCES empleados (identificador)
 );
 
+-- ---- Área 2: dueño / producto / revisión / seguros -------------------------
+-- Tablas satélite: no se agregan columnas a las tablas originales.
+CREATE TABLE devoluciones (
+    producto           INT           NOT NULL,
+    estadoEnvio        VARCHAR(20)   NOT NULL DEFAULT 'preparando'
+        CHECK (estadoEnvio IN ('preparando','en_camino','entregado')),
+    transportista      VARCHAR(150)  NULL,
+    codigoSeguimiento  VARCHAR(100)  NULL,
+    costoEnvio         DECIMAL(18,2) NULL CHECK (costoEnvio >= 0),
+    moneda             VARCHAR(3)    NOT NULL DEFAULT 'ARS' CHECK (moneda IN ('ARS','USD')),
+    direccion          VARCHAR(350)  NULL,
+    CONSTRAINT pk_devoluciones PRIMARY KEY (producto),
+    CONSTRAINT fk_devoluciones_productos FOREIGN KEY (producto) REFERENCES productos (identificador)
+);
+
+CREATE TABLE solicitudesAumentoSeguro (
+    id                   INT           NOT NULL AUTO_INCREMENT,
+    producto             INT           NOT NULL,
+    nuevoValorAsegurado  DECIMAL(18,2) NOT NULL CHECK (nuevoValorAsegurado > 0),
+    estado               VARCHAR(15)   NOT NULL DEFAULT 'pendiente'
+        CHECK (estado IN ('pendiente','aprobada','rechazada')),
+    fecha                DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT pk_solicitudesAumentoSeguro PRIMARY KEY (id),
+    CONSTRAINT fk_solicitudesAumentoSeguro_productos
+        FOREIGN KEY (producto) REFERENCES productos (identificador)
+);
+-- ---- fin Área 2 -------------------------------------------------------------
+
 -- entregas (NUEVA): envio o retiro de una adquisicion.
 CREATE TABLE entregas (
     id                INT          NOT NULL AUTO_INCREMENT,

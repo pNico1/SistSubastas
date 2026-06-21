@@ -8,5 +8,6 @@ import java.util.List;
 public interface ProductoRepository extends JpaRepository<Producto, Integer> {
     List<Producto> findByDuenio(Integer duenio);
     List<Producto> findByDisponible(String disponible);
+    List<Producto> findByDisponibleAndDuenio(String disponible, Integer duenio);
     List<Producto> findByDescripcionCatalogoContainingIgnoreCase(String texto);
 }

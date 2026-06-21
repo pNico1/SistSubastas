@@ -51,5 +51,12 @@ Usuarios de prueba (password para todos: `Password123!`):
 | `admin@subastas.com` | empleado/admin | — |
 
 > Validación: el esquema y el seed se verificaron con `sqlglot` (dialecto MySQL):
-> 25 tablas, todas las FK resuelven, el seed respeta integridad referencial y
+> 27 tablas, todas las FK resuelven, el seed respeta integridad referencial y
 > todos los CHECK (enums) son válidos.
+
+## Área 2 — tablas satélite
+
+- **`devoluciones`** — seguimiento, transportista, costo y destino de la devolución
+  de un producto (relación 1:1 con `productos`).
+- **`solicitudesAumentoSeguro`** — registra solicitudes de aumento de cobertura sin
+  modificar la póliza original ni agregar campos a tablas existentes.

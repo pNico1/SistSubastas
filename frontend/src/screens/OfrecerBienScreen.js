@@ -1,51 +1,118 @@
 import React, { useState } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  TouchableOpacity,
-  Image,
-  Alert,
+  View, Text, StyleSheet, KeyboardAvoidingView, Platform,
+  ScrollView, TouchableOpacity, Image, Alert, TextInput,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
+import { MaterialIcons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import TextField from '../components/TextField';
-import Button from '../components/Button';
 import { productosApi } from '../api/endpoints';
 import { useAuth } from '../context/AuthContext';
-import { colors, radius, spacing } from '../theme';
 import { goBackOrReturnTo } from '../navigationUtils';
+import BottomNavBar from '../components/BottomNavBar';
+import Button from '../components/Button';
 
+const MIN_FOTOS = 6;
 const MAX_FOTOS = 8;
 
-// Circuito "ofrecer un bien": el dueño carga un producto con fotos para subastar.
+const p = {
+  background:    '#F9F5FF',
+  surface:       '#FFFFFF',
+  surfaceLow:    '#F2EFFF',
+  container:     '#E9E5FF',
+  containerLow:  '#F2EFFF',
+  primary:       '#0846ED',
+  primaryFaint:  'rgba(8,70,237,0.08)',
+  text:          '#2B2A51',
+  muted:         '#585781',
+  border:        'rgba(171,169,215,0.35)',
+  borderDash:    '#ABA9D7',
+  danger:        '#B41340',
+  white:         '#FFFFFF',
+};
+
+// Campo de texto interno con el estilo del diseño HTML
+function Field({ label, error, required, multiline, ...props }) {
+  const [focused, setFocused] = useState(false);
+  return (
+    <View style={{ marginBottom: 16 }}>
+      {label ? (
+        <Text style={styles.fieldLabel}>
+          {label}{required ? <Text style={{ color: p.danger }}> *</Text> : null}
+        </Text>
+      ) : null}
+      <TextInput
+        style={[
+          styles.fieldInput,
+          focused && styles.fieldInputFocused,
+          error && styles.fieldInputError,
+          multiline && { height: 96, textAlignVertical: 'top', paddingTop: 14 },
+        ]}
+        placeholderTextColor={p.borderDash}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
+        multiline={multiline}
+        {...props}
+      />
+      {error ? <Text style={styles.fieldError}>{error}</Text> : null}
+    </View>
+  );
+}
+
+// Sección expandible de detalles adicionales
+function ExpandableSection({ children }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <View style={styles.expandCard}>
+      <TouchableOpacity style={styles.expandHeader} onPress={() => setOpen((v) => !v)} activeOpacity={0.75}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+          <MaterialIcons name="info-outline" size={20} color={p.primary} />
+          <Text style={styles.expandTitle}>Detalles adicionales</Text>
+        </View>
+        <MaterialIcons
+          name={open ? 'expand-less' : 'expand-more'}
+          size={22}
+          color={p.muted}
+        />
+      </TouchableOpacity>
+      {open && <View style={styles.expandBody}>{children}</View>}
+    </View>
+  );
+}
+
 export default function OfrecerBienScreen({ navigation, route }) {
   const { user } = useAuth();
+  const insets = useSafeAreaInsets();
   const pendingVerification = user?.estado === 'pending_verification';
+
   const [form, setForm] = useState({
     descripcionCatalogo: '',
     descripcionCompleta: '',
     nombreArtista: '',
     fechaObra: '',
     historia: '',
+    precioBase: '',
+    moneda: 'ARS',
+    cantidad: '1',
   });
-  const [fotos, setFotos] = useState([]); // [{ uri, base64 }]
+  const [fotos, setFotos] = useState([]);
   const [terminos, setTerminos] = useState(false);
+  const [terminosCuracion, setTerminosCuracion] = useState(false);
   const [errors, setErrors] = useState({});
   const [serverError, setServerError] = useState(null);
   const [loading, setLoading] = useState(false);
 
   function set(field, value) {
     setForm((f) => ({ ...f, [field]: value }));
+    setErrors((e) => ({ ...e, [field]: undefined }));
   }
 
   async function agregarFotos() {
     setServerError(null);
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!perm.granted) {
-      Alert.alert('Permiso necesario', 'Necesitamos acceso a tus fotos para adjuntar imagenes del producto.');
+      Alert.alert('Permiso necesario', 'Necesitamos acceso a tus fotos.');
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -56,16 +123,11 @@ export default function OfrecerBienScreen({ navigation, route }) {
       selectionLimit: MAX_FOTOS,
     });
     if (result.canceled) return;
-
-    const nuevas = (result.assets || [])
-      .filter((a) => a.base64)
-      .map((a) => ({ uri: a.uri, base64: a.base64 }));
-
+    const nuevas = (result.assets || []).filter((a) => a.base64).map((a) => ({ uri: a.uri, base64: a.base64 }));
     setFotos((prev) => {
       const combinadas = [...prev, ...nuevas].slice(0, MAX_FOTOS);
-      if (prev.length + nuevas.length > MAX_FOTOS) {
-        Alert.alert('Maximo de fotos', `Podes subir hasta ${MAX_FOTOS} fotos.`);
-      }
+      if (prev.length + nuevas.length > MAX_FOTOS)
+        Alert.alert('Máximo de fotos', `Podés subir hasta ${MAX_FOTOS} fotos.`);
       return combinadas;
     });
     setErrors((e) => ({ ...e, fotos: undefined }));
@@ -77,9 +139,11 @@ export default function OfrecerBienScreen({ navigation, route }) {
 
   function validate() {
     const e = {};
-    if (!form.descripcionCatalogo.trim()) e.descripcionCatalogo = 'Pone un titulo / descripcion de catalogo';
-    if (fotos.length === 0) e.fotos = 'Subi al menos una foto';
-    if (!terminos) e.terminos = 'Tenes que aceptar los terminos';
+    if (!form.descripcionCatalogo.trim()) e.descripcionCatalogo = 'Poné un título para el bien';
+    if (!form.precioBase.trim()) e.precioBase = 'Ingresá un precio base';
+    if (fotos.length < MIN_FOTOS) e.fotos = `Subí al menos ${MIN_FOTOS} fotos (${fotos.length}/${MIN_FOTOS})`;
+    if (!terminos) e.terminos = 'Tenés que declarar que el bien te pertenece';
+    if (!terminosCuracion) e.terminosCuracion = 'Tenés que aceptar las condiciones de curaduría';
     setErrors(e);
     return Object.keys(e).length === 0;
   }
@@ -95,25 +159,22 @@ export default function OfrecerBienScreen({ navigation, route }) {
         nombreArtista: form.nombreArtista.trim() || null,
         fechaObra: form.fechaObra.trim() || null,
         historia: form.historia.trim() || null,
+        precioBase: parseFloat(form.precioBase) || null,
+        moneda: form.moneda,
+        cantidad: parseInt(form.cantidad) || 1,
         terminosAceptados: terminos,
         fotos: fotos.map((f) => f.base64),
       });
       Alert.alert(
         'Producto enviado',
-        `${res.mensaje}. Quedo en estado "${res.estado}" con ${res.cantidadFotos} foto(s).`,
+        `${res.mensaje}. Quedó en estado "${res.estado}" con ${res.cantidadFotos} foto(s).`,
         [{ text: 'Listo', onPress: () => goBackOrReturnTo(navigation, route) }]
       );
     } catch (err) {
-      // Errores conocidos del backend -> a campo puntual cuando aplica.
-      if (err.code === 'NO_PHOTOS') {
-        setErrors((e) => ({ ...e, fotos: err.message }));
-      } else if (err.code === 'TERMS_NOT_ACCEPTED') {
-        setErrors((e) => ({ ...e, terminos: err.message }));
-      } else if (err.code === 'VALIDATION_ERROR' && err.fields) {
-        setErrors((e) => ({ ...e, ...err.fields }));
-      } else {
-        setServerError(err.message || 'No se pudo enviar el producto');
-      }
+      if (err.code === 'NO_PHOTOS') setErrors((e) => ({ ...e, fotos: err.message }));
+      else if (err.code === 'TERMS_NOT_ACCEPTED') setErrors((e) => ({ ...e, terminos: err.message }));
+      else if (err.code === 'VALIDATION_ERROR' && err.fields) setErrors((e) => ({ ...e, ...err.fields }));
+      else setServerError(err.message || 'No se pudo enviar el producto');
     } finally {
       setLoading(false);
     }
@@ -124,7 +185,7 @@ export default function OfrecerBienScreen({ navigation, route }) {
       <View style={styles.blocked}>
         <Text style={styles.blockedTitle}>Cuenta en verificación</Text>
         <Text style={styles.blockedText}>
-          Tu cuenta todavía está pendiente de aprobación. Vas a poder enviar un bien a revisión cuando un administrador la verifique.
+          Tu cuenta todavía está pendiente de aprobación. Vas a poder enviar un bien cuando un administrador la verifique.
         </Text>
         <Button title="Volver al inicio" onPress={() => navigation.navigate('Bidster')} variant="accent" />
       </View>
@@ -132,127 +193,326 @@ export default function OfrecerBienScreen({ navigation, route }) {
   }
 
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1, backgroundColor: colors.background }}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
-      <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-        <Text style={styles.title}>Ofrecer un bien</Text>
-        <Text style={styles.subtitle}>Carga tu producto y sus fotos. Un empleado lo revisara antes de subastarse.</Text>
+    <View style={{ flex: 1, backgroundColor: p.background }}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <ScrollView
+          contentContainerStyle={[styles.container, { paddingBottom: insets.bottom + 80 }]}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
 
-        <View style={styles.card}>
-          <TextField
-            label="Titulo / descripcion de catalogo"
-            value={form.descripcionCatalogo}
-            onChangeText={(v) => set('descripcionCatalogo', v)}
-            placeholder="Ej: Reloj de bolsillo antiguo"
-            error={errors.descripcionCatalogo}
-          />
-          <TextField
-            label="Descripcion completa (opcional)"
-            value={form.descripcionCompleta}
-            onChangeText={(v) => set('descripcionCompleta', v)}
-            placeholder="Detalle, estado de conservacion, etc."
-            multiline
-            numberOfLines={3}
-            error={errors.descripcionCompleta}
-          />
-          <TextField
-            label="Artista / autor (opcional)"
-            value={form.nombreArtista}
-            onChangeText={(v) => set('nombreArtista', v)}
-            placeholder="Ej: Patek Philippe"
-          />
-          <TextField
-            label="Fecha de la obra (opcional)"
-            value={form.fechaObra}
-            onChangeText={(v) => set('fechaObra', v)}
-            placeholder="Ej: 1920"
-          />
-          <TextField
-            label="Historia / procedencia (opcional)"
-            value={form.historia}
-            onChangeText={(v) => set('historia', v)}
-            placeholder="De donde viene la pieza"
-            multiline
-            numberOfLines={3}
-          />
-        </View>
+          {/* Galería */}
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionLabel}>Galería de imágenes</Text>
+            <Text style={styles.sectionHint}>{fotos.length}/{MAX_FOTOS} · mínimo {MIN_FOTOS}</Text>
+          </View>
 
-        <View style={styles.card}>
-          <Text style={styles.sectionTitle}>Fotos ({fotos.length}/{MAX_FOTOS})</Text>
-          <View style={styles.thumbs}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.galeria}
+            style={{ marginHorizontal: -20, paddingHorizontal: 20 }}
+          >
+            {/* Botón agregar */}
+            {fotos.length < MAX_FOTOS && (
+              <TouchableOpacity style={styles.galeriaAdd} onPress={agregarFotos} activeOpacity={0.75}>
+                <MaterialIcons name="add-circle-outline" size={28} color={p.muted} />
+                <Text style={styles.galeriaAddText}>Subir</Text>
+              </TouchableOpacity>
+            )}
+
+            {/* Fotos cargadas */}
             {fotos.map((f, i) => (
-              <View key={`${f.uri}-${i}`} style={styles.thumbWrap}>
-                <Image source={{ uri: f.uri }} style={styles.thumb} />
-                <TouchableOpacity style={styles.thumbRemove} onPress={() => quitarFoto(i)}>
-                  <Text style={styles.thumbRemoveText}>×</Text>
+              <View key={`${f.uri}-${i}`} style={styles.galeriaThumb}>
+                <Image source={{ uri: f.uri }} style={styles.galeriaImg} />
+                <TouchableOpacity style={styles.galeriaRemove} onPress={() => quitarFoto(i)}>
+                  <MaterialIcons name="close" size={12} color={p.white} />
                 </TouchableOpacity>
               </View>
             ))}
-            {fotos.length < MAX_FOTOS ? (
-              <TouchableOpacity style={styles.addThumb} onPress={agregarFotos}>
-                <Text style={styles.addThumbPlus}>+</Text>
-                <Text style={styles.addThumbText}>Agregar</Text>
-              </TouchableOpacity>
-            ) : null}
+
+            {/* Placeholders */}
+            {Array.from({ length: Math.max(0, MIN_FOTOS - fotos.length) }).map((_, i) => (
+              <View key={`ph-${i}`} style={styles.galeriaPlaceholder}>
+                <MaterialIcons name="image" size={28} color="rgba(171,169,215,0.4)" />
+              </View>
+            ))}
+          </ScrollView>
+          {errors.fotos ? <Text style={styles.fieldError}>{errors.fotos}</Text> : null}
+
+          {/* Información básica */}
+          <Text style={[styles.sectionLabel, { marginTop: 28, marginBottom: 16 }]}>Información Básica</Text>
+
+          <Field
+            label="Nombre o título"
+            required
+            value={form.descripcionCatalogo}
+            onChangeText={(v) => set('descripcionCatalogo', v)}
+            placeholder="Ej: Reloj Patek Philippe Calatrava"
+            error={errors.descripcionCatalogo}
+          />
+          <Field
+            label="Descripción"
+            required
+            value={form.descripcionCompleta}
+            onChangeText={(v) => set('descripcionCompleta', v)}
+            placeholder="Detallá el estado, procedencia y características únicas..."
+            multiline
+            error={errors.descripcionCompleta}
+          />
+
+          {/* Precio y cantidad */}
+          <View style={{ flexDirection: 'row', gap: 12, marginBottom: 16 }}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.fieldLabel}>
+                Precio base sugerido<Text style={{ color: p.danger }}> *</Text>
+              </Text>
+              <View style={styles.precioWrap}>
+                <TextInput
+                  style={styles.precioInput}
+                  value={form.precioBase}
+                  onChangeText={(v) => set('precioBase', v)}
+                  placeholder="0.00"
+                  placeholderTextColor={p.borderDash}
+                  keyboardType="decimal-pad"
+                />
+                <View style={styles.monedaToggle}>
+                  {['ARS', 'USD'].map((m) => (
+                    <TouchableOpacity
+                      key={m}
+                      onPress={() => set('moneda', m)}
+                      style={[styles.monedaBtn, form.moneda === m && styles.monedaBtnActive]}
+                    >
+                      <Text style={[styles.monedaText, form.moneda === m && { color: p.primary }]}>{m}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+              {errors.precioBase ? <Text style={styles.fieldError}>{errors.precioBase}</Text> : null}
+            </View>
+            <View style={{ width: 110 }}>
+              <Field
+                label="Cantidad"
+                value={form.cantidad}
+                onChangeText={(v) => set('cantidad', v)}
+                keyboardType="number-pad"
+              />
+            </View>
           </View>
-          {errors.fotos ? <Text style={styles.error}>{errors.fotos}</Text> : null}
-        </View>
 
-        <TouchableOpacity
-          style={styles.terminos}
-          onPress={() => { setTerminos((t) => !t); setErrors((e) => ({ ...e, terminos: undefined })); }}
-          activeOpacity={0.7}
-        >
-          <View style={[styles.checkbox, terminos && styles.checkboxOn]}>
-            {terminos ? <Text style={styles.checkboxTick}>✓</Text> : null}
+          {/* Detalles adicionales expandibles */}
+          <ExpandableSection>
+            <Field
+              label="Autor o diseñador"
+              value={form.nombreArtista}
+              onChangeText={(v) => set('nombreArtista', v)}
+              placeholder="Ej: Patek Philippe"
+            />
+            <Field
+              label="Fecha / Época"
+              value={form.fechaObra}
+              onChangeText={(v) => set('fechaObra', v)}
+              placeholder="Ej: 1920"
+            />
+            <Field
+              label="Historia o contexto"
+              value={form.historia}
+              onChangeText={(v) => set('historia', v)}
+              placeholder="De dónde viene la pieza..."
+              multiline
+            />
+          </ExpandableSection>
+
+          {/* Checks legales */}
+          <View style={{ marginTop: 24, gap: 14 }}>
+            <TouchableOpacity
+              style={styles.checkRow}
+              onPress={() => { setTerminos((t) => !t); setErrors((e) => ({ ...e, terminos: undefined })); }}
+              activeOpacity={0.75}
+            >
+              <View style={[styles.checkbox, terminos && styles.checkboxOn]}>
+                {terminos && <MaterialIcons name="check" size={13} color={p.white} />}
+              </View>
+              <Text style={styles.checkText}>
+                Declaro que el bien me pertenece y poseo los derechos para su comercialización.{' '}
+                <Text style={{ color: p.danger }}>*</Text>
+              </Text>
+            </TouchableOpacity>
+            {errors.terminos ? <Text style={styles.fieldError}>{errors.terminos}</Text> : null}
+
+            <TouchableOpacity
+              style={styles.checkRow}
+              onPress={() => { setTerminosCuracion((t) => !t); setErrors((e) => ({ ...e, terminosCuracion: undefined })); }}
+              activeOpacity={0.75}
+            >
+              <View style={[styles.checkbox, terminosCuracion && styles.checkboxOn]}>
+                {terminosCuracion && <MaterialIcons name="check" size={13} color={p.white} />}
+              </View>
+              <Text style={styles.checkText}>
+                Acepto condiciones de curaduría (devolución con costo logístico si el artículo no es aceptado).{' '}
+                <Text style={{ color: p.danger }}>*</Text>
+              </Text>
+            </TouchableOpacity>
+            {errors.terminosCuracion ? <Text style={styles.fieldError}>{errors.terminosCuracion}</Text> : null}
           </View>
-          <Text style={styles.terminosText}>
-            Acepto los terminos y condiciones para ofrecer este bien en subasta.
-          </Text>
-        </TouchableOpacity>
-        {errors.terminos ? <Text style={styles.error}>{errors.terminos}</Text> : null}
 
-        {serverError ? <Text style={styles.serverError}>{serverError}</Text> : null}
+          {serverError ? <Text style={styles.serverError}>{serverError}</Text> : null}
 
-        <Button title="Enviar a revision" onPress={onSubmit} loading={loading} />
-      </ScrollView>
-    </KeyboardAvoidingView>
+          {/* Botón enviar */}
+          <TouchableOpacity
+            onPress={onSubmit}
+            disabled={loading}
+            activeOpacity={0.88}
+            style={{ marginTop: 28 }}
+          >
+            <LinearGradient
+              colors={loading ? ['#ABA9D7', '#ABA9D7'] : ['#0846ED', '#859AFF']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.submitBtn}
+            >
+              <Text style={styles.submitText}>
+                {loading ? 'Enviando...' : 'Enviar a revisión'}
+              </Text>
+              {!loading && <MaterialIcons name="send" size={20} color={p.white} style={{ marginLeft: 8 }} />}
+            </LinearGradient>
+          </TouchableOpacity>
+
+          <Text style={styles.reviewNote}>REVISIÓN ESTIMADA: 24–48 HORAS HÁBILES</Text>
+
+        </ScrollView>
+      </KeyboardAvoidingView>
+
+      <BottomNavBar navigation={navigation} />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  blocked: { flex: 1, backgroundColor: colors.background, padding: spacing.lg, alignItems: 'center', justifyContent: 'center' },
-  blockedTitle: { color: colors.text, fontSize: 22, fontWeight: '800', marginBottom: spacing.sm, textAlign: 'center' },
-  blockedText: { color: colors.textMuted, fontSize: 15, lineHeight: 22, textAlign: 'center', marginBottom: spacing.lg },
-  container: { padding: spacing.lg },
-  title: { fontSize: 24, fontWeight: '800', color: colors.text },
-  subtitle: { color: colors.textMuted, marginTop: spacing.xs, marginBottom: spacing.lg },
-  card: { backgroundColor: colors.surface, padding: spacing.lg, borderRadius: 16, marginBottom: spacing.md },
-  sectionTitle: { fontWeight: '700', color: colors.text, marginBottom: spacing.sm, fontSize: 16 },
-  thumbs: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
-  thumbWrap: { position: 'relative' },
-  thumb: { width: 84, height: 84, borderRadius: radius.md, backgroundColor: colors.border },
-  thumbRemove: {
-    position: 'absolute', top: -6, right: -6, backgroundColor: colors.danger,
-    width: 22, height: 22, borderRadius: 11, alignItems: 'center', justifyContent: 'center',
+  blocked: { flex: 1, backgroundColor: p.background, padding: 24, alignItems: 'center', justifyContent: 'center' },
+  blockedTitle: { color: p.text, fontSize: 22, fontWeight: '800', marginBottom: 8, textAlign: 'center' },
+  blockedText: { color: p.muted, fontSize: 15, lineHeight: 22, textAlign: 'center', marginBottom: 24 },
+
+  container: { paddingHorizontal: 20, paddingTop: 16 },
+
+  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 },
+  sectionLabel: { fontSize: 11, fontWeight: '800', color: p.muted, textTransform: 'uppercase', letterSpacing: 1.5 },
+  sectionHint: { fontSize: 12, fontWeight: '700', color: p.primary },
+
+  // Galería
+  galeria: { flexDirection: 'row', gap: 12, paddingVertical: 8, paddingRight: 20 },
+  galeriaAdd: {
+    width: 112, height: 144, borderRadius: 12,
+    backgroundColor: p.container,
+    borderWidth: 1.5, borderStyle: 'dashed', borderColor: 'rgba(171,169,215,0.5)',
+    alignItems: 'center', justifyContent: 'center', gap: 6,
   },
-  thumbRemoveText: { color: '#fff', fontSize: 15, fontWeight: '700', lineHeight: 17 },
-  addThumb: {
-    width: 84, height: 84, borderRadius: radius.md, borderWidth: 1, borderStyle: 'dashed',
-    borderColor: colors.primary, alignItems: 'center', justifyContent: 'center',
+  galeriaAddText: { fontSize: 10, fontWeight: '800', color: p.muted, textTransform: 'uppercase', letterSpacing: 1 },
+  galeriaThumb: { width: 112, height: 144, borderRadius: 12, overflow: 'visible' },
+  galeriaImg: { width: 112, height: 144, borderRadius: 12 },
+  galeriaRemove: {
+    position: 'absolute', top: -6, right: -6,
+    backgroundColor: p.danger,
+    width: 22, height: 22, borderRadius: 11,
+    alignItems: 'center', justifyContent: 'center',
+    zIndex: 1,
   },
-  addThumbPlus: { color: colors.primary, fontSize: 24, fontWeight: '700', lineHeight: 26 },
-  addThumbText: { color: colors.primary, fontSize: 12 },
-  terminos: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: spacing.sm },
+  galeriaPlaceholder: {
+    width: 112, height: 144, borderRadius: 12,
+    backgroundColor: 'rgba(233,229,255,0.5)',
+    borderWidth: 1, borderColor: 'rgba(171,169,215,0.2)',
+    alignItems: 'center', justifyContent: 'center',
+  },
+
+  // Campos
+  fieldLabel: { fontSize: 11, fontWeight: '800', color: p.text, marginBottom: 6, letterSpacing: 0.3 },
+  fieldInput: {
+    backgroundColor: p.surface,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    fontSize: 15,
+    color: p.text,
+    borderWidth: 0,
+    shadowColor: p.text,
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 1,
+  },
+  fieldInputFocused: {
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  fieldInputError: { borderWidth: 1.5, borderColor: p.danger },
+  fieldError: { color: p.danger, fontSize: 12, fontWeight: '600', marginTop: 5 },
+
+  // Precio
+  precioWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: p.surface,
+    borderRadius: 12,
+    overflow: 'hidden',
+    shadowColor: p.text,
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 1,
+  },
+  precioInput: { flex: 1, paddingHorizontal: 14, paddingVertical: 14, fontSize: 15, color: p.text },
+  monedaToggle: {
+    flexDirection: 'row',
+    backgroundColor: p.container,
+    margin: 6,
+    borderRadius: 8,
+    padding: 2,
+    gap: 2,
+  },
+  monedaBtn: { paddingHorizontal: 8, paddingVertical: 5, borderRadius: 6 },
+  monedaBtnActive: { backgroundColor: p.white },
+  monedaText: { fontSize: 10, fontWeight: '900', color: p.muted },
+
+  // Expandible
+  expandCard: {
+    backgroundColor: p.surfaceLow,
+    borderRadius: 16,
+    overflow: 'hidden',
+    marginBottom: 4,
+  },
+  expandHeader: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: 16, paddingVertical: 16,
+  },
+  expandTitle: { fontSize: 14, fontWeight: '700', color: p.text },
+  expandBody: { paddingHorizontal: 16, paddingBottom: 16 },
+
+  // Checks
+  checkRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
   checkbox: {
-    width: 24, height: 24, borderRadius: 6, borderWidth: 2, borderColor: colors.primary,
-    alignItems: 'center', justifyContent: 'center', marginRight: spacing.sm,
+    width: 22, height: 22, borderRadius: 6,
+    borderWidth: 1.5, borderColor: p.borderDash,
+    backgroundColor: p.surface,
+    alignItems: 'center', justifyContent: 'center',
+    marginTop: 1, flexShrink: 0,
   },
-  checkboxOn: { backgroundColor: colors.primary },
-  checkboxTick: { color: '#fff', fontWeight: '800', fontSize: 14 },
-  terminosText: { flex: 1, color: colors.text },
-  error: { color: colors.danger, marginTop: spacing.xs, fontSize: 13, marginBottom: spacing.sm },
-  serverError: { color: colors.danger, marginBottom: spacing.md, textAlign: 'center' },
+  checkboxOn: { backgroundColor: p.primary, borderColor: p.primary },
+  checkText: { flex: 1, fontSize: 13, fontWeight: '500', color: p.muted, lineHeight: 20 },
+
+  // Submit
+  submitBtn: {
+    height: 58, borderRadius: 16,
+    flexDirection: 'row',
+    alignItems: 'center', justifyContent: 'center',
+    shadowColor: p.primary, shadowOpacity: 0.25,
+    shadowRadius: 16, shadowOffset: { width: 0, height: 8 }, elevation: 6,
+  },
+  submitText: { color: p.white, fontSize: 16, fontWeight: '800' },
+  reviewNote: {
+    textAlign: 'center', color: p.borderDash,
+    fontSize: 10, fontWeight: '700',
+    letterSpacing: 1.5, marginTop: 14, marginBottom: 4,
+  },
+  serverError: { color: p.danger, textAlign: 'center', marginTop: 12, fontWeight: '600' },
 });

@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import Loading from '../components/Loading';
 import ErrorView from '../components/ErrorView';
 import { colors, radius, spacing } from '../theme';
+import { navigateWithReturnTo } from '../navigationUtils'; // FIX: import agregado
 
 export default function SubastasListScreen({ navigation }) {
   const { user } = useAuth();
@@ -39,7 +40,8 @@ export default function SubastasListScreen({ navigation }) {
       );
       return;
     }
-    navigation.navigate('SubastaDetail', { id });
+    // FIX: reemplazado navigation.navigate por navigateWithReturnTo para propagar returnTo
+    navigateWithReturnTo(navigation, 'SubastaDetail', { id });
   }
 
   if (loading) return <Loading text="Cargando subastas..." />;

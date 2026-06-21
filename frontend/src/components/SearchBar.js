@@ -6,7 +6,7 @@ import {
 } from 'react-native';
 
 // Controlado: recibe value/onChangeText para poder filtrar de verdad.
-export default function SearchBar({ value, onChangeText, placeholder = 'Buscar subastas...' }) {
+export default function SearchBar({ value, onChangeText, placeholder = '' }) {
   return (
     <View style={styles.container}>
       <TextInput

@@ -19,5 +19,5 @@ public record CreateProductoRequest(
         @Size(max = 50) String fechaObra,
         @Size(max = 1000) String historia,
         @NotNull Boolean terminosAceptados,
-        @NotEmpty List<@NotBlank String> fotos                   // base64, al menos una
+        @NotEmpty @Size(min = 6, max = 8) List<@NotBlank String> fotos // base64, entre 6 y 8
 ) {}

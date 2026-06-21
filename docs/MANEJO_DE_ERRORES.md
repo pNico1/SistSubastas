@@ -1,8 +1,3 @@
-# Manejo de errores (entrega 2)
-
-Documento requerido por la 2da entrega. Describe cómo la app maneja campos
-obligatorios/opcionales, alertas, conexión a internet y errores de negocio,
-tanto en el **backend** (Spring Boot) como en el **frontend** (Expo).
 
 ## 1. Formato único de error (backend)
 
@@ -61,7 +56,7 @@ El interceptor de `axios` (`src/api/client.js`) normaliza estos casos:
 `ErrorView` detecta `isNetwork` y muestra un ícono 📡 y el botón **Reintentar**.
 Así el usuario distingue un problema de red de un error de negocio.
 
-## 5. Errores de negocio del circuito de pujas
+## 5. Errores de negocio 
 
 | HTTP | code | Cuándo | Dónde se ve |
 |------|------|--------|-------------|
@@ -79,9 +74,9 @@ Así el usuario distingue un problema de red de un error de negocio.
 | 409 | `PUJA_TOO_HIGH` | mayor a (oferta + 20% base) | alerta |
 | 400 | `INVALID_AMOUNT` | importe ≤ 0 | alerta |
 
-## 6. Integridad de la puja (regla del TP)
+## 6. Integridad de la puja
 
-El TP exige que *"la app no permita otra puja hasta recibir confirmación"*.
+la app no permite otra puja hasta recibir confirmación.
 Implementado en `ItemDetailScreen`: el botón **Pujar** queda deshabilitado
 (`submitting = true`) desde el envío hasta recibir la respuesta del backend;
 recién entonces se refresca la oferta y se vuelve a habilitar.

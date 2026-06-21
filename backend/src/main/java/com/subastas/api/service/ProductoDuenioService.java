@@ -7,14 +7,23 @@ import com.subastas.api.domain.Duenio;
 import com.subastas.api.domain.Empleado;
 import com.subastas.api.domain.Foto;
 import com.subastas.api.domain.Producto;
+import com.subastas.api.domain.Devolucion;
+import com.subastas.api.domain.Revision;
 import com.subastas.api.dto.CreateProductoRequest;
+import com.subastas.api.dto.DevolucionResponse;
+import com.subastas.api.dto.ProductoDetalleDto;
 import com.subastas.api.dto.ProductoCreatedDto;
 import com.subastas.api.dto.ProductoDto;
+import com.subastas.api.dto.RejectMotiveResponse;
+import com.subastas.api.dto.TerminosRequest;
+import com.subastas.api.dto.TerminosResponse;
 import com.subastas.api.repository.ClienteRepository;
+import com.subastas.api.repository.DevolucionRepository;
 import com.subastas.api.repository.DuenioRepository;
 import com.subastas.api.repository.EmpleadoRepository;
 import com.subastas.api.repository.FotoRepository;
 import com.subastas.api.repository.ProductoRepository;
+import com.subastas.api.repository.RevisionRepository;
 import com.subastas.api.security.AuthPrincipal;
 import com.subastas.api.security.CurrentUser;
 import org.springframework.http.HttpStatus;
@@ -31,6 +40,7 @@ import java.util.List;
 public class ProductoDuenioService {
 
     // Limites para el payload de fotos (base64 en JSON).
+    private static final int MIN_FOTOS = 6;
     private static final int MAX_FOTOS = 8;
     private static final long MAX_FOTO_BYTES = 5L * 1024 * 1024;    // 5 MB por foto
     private static final long MAX_TOTAL_BYTES = 15L * 1024 * 1024;  // 15 MB en total
@@ -40,15 +50,22 @@ public class ProductoDuenioService {
     private final DuenioRepository duenioRepo;
     private final ClienteRepository clienteRepo;
     private final EmpleadoRepository empleadoRepo;
+    private final RevisionRepository revisionRepo;
+    private final DevolucionRepository devolucionRepo;
+    private final ProductoConsultaService consultaService;
 
     public ProductoDuenioService(ProductoRepository productoRepo, FotoRepository fotoRepo,
                                  DuenioRepository duenioRepo, ClienteRepository clienteRepo,
-                                 EmpleadoRepository empleadoRepo) {
+                                 EmpleadoRepository empleadoRepo, RevisionRepository revisionRepo,
+                                 DevolucionRepository devolucionRepo, ProductoConsultaService consultaService) {
         this.productoRepo = productoRepo;
         this.fotoRepo = fotoRepo;
         this.duenioRepo = duenioRepo;
         this.clienteRepo = clienteRepo;
         this.empleadoRepo = empleadoRepo;
+        this.revisionRepo = revisionRepo;
+        this.devolucionRepo = devolucionRepo;
+        this.consultaService = consultaService;
     }
 
     public List<ProductoDto> misProductos() {
@@ -64,6 +81,44 @@ public class ProductoDuenioService {
             throw ApiException.forbidden(ErrorCodes.NOT_OWNER_OF_PRODUCTO, "Este producto no es tuyo");
         }
         return toDto(prod);
+    }
+
+    public ProductoDetalleDto getDetalleById(Integer id) {
+        requireOwned(id);
+        return consultaService.getProductoById(id);
+    }
+
+    public RejectMotiveResponse getRejectMotive(Integer id) {
+        requireOwned(id);
+        Revision revision = revisionRepo.findFirstByProductoAndEstadoOrderByFechaDesc(id, "rechazado")
+                .orElseThrow(() -> ApiException.notFound(ErrorCodes.NOT_FOUND, "El producto no tiene un rechazo registrado"));
+        Devolucion devolucion = devolucionRepo.findById(id).orElse(null);
+        return new RejectMotiveResponse(revision.getMotivo(), revision.getFecha(),
+                devolucion == null ? null : devolucion.getCostoEnvio(),
+                devolucion == null ? null : devolucion.getMoneda());
+    }
+
+    @Transactional
+    public TerminosResponse updateProductTermsAcceptance(Integer id, TerminosRequest request) {
+        Producto producto = requireOwned(id);
+        if (!List.of("aprobado", "aceptado").contains(producto.getEstado())) {
+            throw ApiException.conflict(ErrorCodes.CONFLICT,
+                    "Los terminos solo pueden responderse para un producto aprobado");
+        }
+        boolean aceptados = Boolean.TRUE.equals(request.aceptados());
+        producto.setTerminosAceptados(aceptados ? "si" : "no");
+        producto.setEstado(aceptados ? "aceptado" : "devuelto");
+        producto.setDisponible(aceptados ? "si" : "no");
+        productoRepo.save(producto);
+        return new TerminosResponse(id, aceptados, producto.getEstado());
+    }
+
+    public DevolucionResponse getProductReturnDetails(Integer id) {
+        requireOwned(id);
+        Devolucion d = devolucionRepo.findById(id)
+                .orElseThrow(() -> ApiException.notFound(ErrorCodes.NOT_FOUND, "Devolucion no encontrada"));
+        return new DevolucionResponse(d.getEstadoEnvio(), d.getTransportista(), d.getCodigoSeguimiento(),
+                d.getCostoEnvio(), d.getMoneda(), d.getDireccion());
     }
 
     /**
@@ -121,8 +176,9 @@ public class ProductoDuenioService {
 
     /** Decodifica y valida las fotos base64; lanza errores claros segun el caso. */
     private List<byte[]> decodeFotos(List<String> raw) {
-        if (raw == null || raw.isEmpty()) {
-            throw ApiException.badRequest(ErrorCodes.NO_PHOTOS, "Subi al menos una foto del producto");
+        if (raw == null || raw.size() < MIN_FOTOS) {
+            throw ApiException.badRequest(ErrorCodes.NO_PHOTOS,
+                    "Subi al menos " + MIN_FOTOS + " fotos del producto");
         }
         if (raw.size() > MAX_FOTOS) {
             throw new ApiException(HttpStatus.PAYLOAD_TOO_LARGE, ErrorCodes.PAYLOAD_TOO_LARGE,
@@ -189,5 +245,15 @@ public class ProductoDuenioService {
         return new ProductoDto(pr.getIdentificador(), pr.getDescripcionCatalogo(),
                 pr.getDescripcionCompleta(), pr.getEstado(), pr.getDisponible(),
                 pr.getNombreArtista(), pr.getSeguro());
+    }
+
+    private Producto requireOwned(Integer id) {
+        AuthPrincipal principal = CurrentUser.get();
+        Producto producto = productoRepo.findById(id)
+                .orElseThrow(() -> ApiException.notFound(ErrorCodes.PRODUCTO_NOT_FOUND, "Producto no encontrado"));
+        if (!producto.getDuenio().equals(principal.personaId())) {
+            throw ApiException.forbidden(ErrorCodes.NOT_OWNER_OF_PRODUCTO, "Este producto no es tuyo");
+        }
+        return producto;
     }
 }
