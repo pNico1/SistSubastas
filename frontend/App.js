@@ -34,6 +34,11 @@ import MotivoRechazoScreen from './src/screens/MotivoRechazoScreen';
 import AceptarTerminosScreen from './src/screens/AceptarTerminosScreen';
 import DevolucionScreen from './src/screens/DevolucionScreen';
 import UpgradeSeguroScreen from './src/screens/UpgradeSeguroScreen';
+// ---- Área 1: compras y pagos ----
+import MisAdquisicionesScreen from './src/screens/MisAdquisicionesScreen';
+import AdquisicionDetailScreen from './src/screens/AdquisicionDetailScreen';
+import PagoAdquisicionScreen from './src/screens/PagoAdquisicionScreen';
+// ---- fin Área 1 ----
 // ---- Área 3: perfil y métricas ----
 import EditarPerfilScreen from './src/screens/EditarPerfilScreen';
 import MetricasScreen from './src/screens/MetricasScreen';
@@ -196,6 +201,11 @@ function RootNavigator() {
             <Stack.Screen name="AceptarTerminos" component={AceptarTerminosScreen} options={{ headerShown: false }} />
             <Stack.Screen name="Devolucion" component={DevolucionScreen} options={{ headerShown: false }} />
             <Stack.Screen name="UpgradeSeguro" component={UpgradeSeguroScreen} options={{ headerShown: false }} />
+
+            {/* Área 1: compras y pagos */}
+            <Stack.Screen name="MisAdquisiciones" component={MisAdquisicionesScreen} options={{ headerShown: false }} />
+            <Stack.Screen name="AdquisicionDetail" component={AdquisicionDetailScreen} options={{ headerShown: false }} />
+            <Stack.Screen name="PagoAdquisicion" component={PagoAdquisicionScreen} options={{ headerShown: false }} />
 
             <Stack.Screen name="PaymentMethods" component={PaymentMethodsScreen} options={{ headerShown: false }} />
             <Stack.Screen name="PaymentMethod" component={PaymentMethodScreen} options={{ headerShown: false }} />

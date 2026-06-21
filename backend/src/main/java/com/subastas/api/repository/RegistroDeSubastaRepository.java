@@ -9,4 +9,6 @@ public interface RegistroDeSubastaRepository extends JpaRepository<RegistroDeSub
     List<RegistroDeSubasta> findByCliente(Integer cliente);
     List<RegistroDeSubasta> findByClienteAndEstado(Integer cliente, String estado);
     List<RegistroDeSubasta> findBySubasta(Integer subasta);
+    // usado por el scheduler de multas para encontrar adquisiciones impagas
+    List<RegistroDeSubasta> findByEstado(String estado);
 }

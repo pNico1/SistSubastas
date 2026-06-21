@@ -108,6 +108,28 @@ export const clienteApi = {
     client.patch(`/api/clientes/me/notifications/${id}/read`).then((r) => r.data),
 };
 
+// ---- ADQUISICIONES (compras de piezas ganadas — Área 1) ----
+export const adquisicionesApi = {
+  listar: (estado) =>
+    client.get('/api/clientes/me/adquisiciones', { params: estado ? { estado } : {} }).then((r) => r.data),
+  resumen: () =>
+    client.get('/api/clientes/me/adquisiciones/resumen').then((r) => r.data),
+  getById: (id) =>
+    client.get(`/api/clientes/me/adquisiciones/${id}`).then((r) => r.data),
+  factura: (id) =>
+    client.get(`/api/clientes/me/adquisiciones/${id}/factura`).then((r) => r.data),
+  // data: { paymentMethodId, moneda, confirmacionTerminos }
+  pagar: (id, data) =>
+    client.post(`/api/clientes/me/adquisiciones/${id}/payment`, data).then((r) => r.data),
+};
+
+// ---- MULTAS (Área 1) ----
+export const multasApi = {
+  listar: () => client.get('/api/clientes/me/fines').then((r) => r.data),
+  pagar: (id, paymentMethodId) =>
+    client.post(`/api/clientes/me/fines/${id}/payment`, { paymentMethodId }).then((r) => r.data),
+};
+
 // ---- ADMIN (segun contrato del PDF) ----
 export const adminApi = {
   // ---- Área 2: catálogos paginados ----

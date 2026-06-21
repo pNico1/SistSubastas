@@ -236,6 +236,14 @@ export default function PerfilScreen({ navigation }) {
           />
           <View style={styles.divider} />
           <ActionRow
+            icon="shopping-bag"
+            label="Mis compras"
+            iconColor={p.primary}
+            iconBg={p.primaryFaint}
+            onPress={() => navigation.navigate('MisAdquisiciones')}
+          />
+          <View style={styles.divider} />
+          <ActionRow
             icon="insights"
             label="Mis métricas"
             iconColor={p.tertiary}
