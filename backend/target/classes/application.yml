@@ -6,32 +6,29 @@ spring:
     import:
       - optional:file:.env[.properties]
       - optional:file:backend/.env[.properties]
-
   application:
     name: subastas-api
-
   datasource:
-    url: jdbc:mysql://localhost:3306/subastas?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=America/Argentina/Buenos_Aires
-    username: root
-    password: 1234r
+    # Host/puerto de la base por variables de entorno. DB_HOST = IP del contenedor.
+    url: jdbc:mysql://${DB_HOST:192.168.0.37}:${DB_PORT:3306}/subastas?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=America/Argentina/Buenos_Aires
+    username: subastas_app
+    password: 1234
     driver-class-name: com.mysql.cj.jdbc.Driver
-
   jpa:
     hibernate:
-      ddl-auto: none
+      ddl-auto: none           # el esquema lo maneja 01_schema.sql (TP). Hibernate NO lo toca.
       naming:
+        # NO convertir camelCase a snake_case: las columnas del TP son camelCase.
         physical-strategy: org.hibernate.boot.model.naming.PhysicalNamingStrategyStandardImpl
     properties:
       hibernate:
         dialect: org.hibernate.dialect.MySQLDialect
         format_sql: true
     open-in-view: false
-
   servlet:
     multipart:
       max-file-size: 10MB
       max-request-size: 12MB
-
 app:
   inspeccion:
     direccion: ${INSPECTION_ADDRESS:Av. del Puerto 1450, Depósito 3, CABA}
