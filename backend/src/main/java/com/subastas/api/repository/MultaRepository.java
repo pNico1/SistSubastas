@@ -8,5 +8,6 @@ import java.util.Optional;
 
 public interface MultaRepository extends JpaRepository<Multa, Integer> {
     List<Multa> findByCliente(Integer cliente);
+    boolean existsByClienteAndEstado(Integer cliente, String estado);
     Optional<Multa> findByAdquisicion(Integer adquisicion);
 }

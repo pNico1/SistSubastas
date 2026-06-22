@@ -12,6 +12,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
+import com.subastas.api.repository.UsuarioRepository;
 
 import java.io.IOException;
 import java.util.List;
@@ -21,9 +22,11 @@ import java.util.List;
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
+    private final UsuarioRepository usuarioRepo;
 
-    public JwtAuthenticationFilter(JwtService jwtService) {
+    public JwtAuthenticationFilter(JwtService jwtService, UsuarioRepository usuarioRepo) {
         this.jwtService = jwtService;
+        this.usuarioRepo = usuarioRepo;
     }
 
     @Override
@@ -38,6 +41,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 if (jwtService.isAccessToken(claims)
                         && SecurityContextHolder.getContext().getAuthentication() == null) {
                     AuthPrincipal principal = jwtService.toPrincipal(claims);
+                    boolean suspendido = usuarioRepo.findById(principal.usuarioId())
+                            .map(u -> "suspended".equals(u.getEstadoRegistro()))
+                            .orElse(true);
+                    if (suspendido) {
+                        SecurityContextHolder.clearContext();
+                        chain.doFilter(request, response);
+                        return;
+                    }
                     List<SimpleGrantedAuthority> authorities = principal.roles().stream()
                             .map(SimpleGrantedAuthority::new)
                             .toList();

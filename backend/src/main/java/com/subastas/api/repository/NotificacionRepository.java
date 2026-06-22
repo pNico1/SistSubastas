@@ -7,4 +7,5 @@ import java.util.List;
 
 public interface NotificacionRepository extends JpaRepository<Notificacion, Integer> {
     List<Notificacion> findByClienteOrderByFechaDesc(Integer cliente);
+    boolean existsByClienteAndTipo(Integer cliente, String tipo);
 }

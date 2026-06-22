@@ -78,37 +78,56 @@ function normalizarProductos(response) {
   return [];
 }
 
-function ProductoCard({ producto, onPress }) {
+const ESTADOS_CON_SEGURO = new Set(['aprobado', 'aceptado', 'en_subasta']);
+
+function ProductoCard({ producto, onPress, onSeguro, onVenta }) {
   const estado = estadoConfig(producto.estado);
   const id = producto.productoId ?? producto.id;
+  const puedeGestionarSeguro = ESTADOS_CON_SEGURO.has(producto.estado) && !!producto.seguro;
 
   return (
-    <TouchableOpacity
-      style={styles.card}
-      onPress={onPress}
-      activeOpacity={0.85}
-      accessibilityRole="button"
-      accessibilityLabel={`Ver ${producto.descripcionCatalogo || `producto ${id}`}`}
-    >
-      <View style={styles.thumbnail}>
-        <MaterialIcons name="image" size={28} color={palette.primary} />
-      </View>
-
-      <View style={styles.cardContent}>
-        <Text style={styles.cardTitle} numberOfLines={2}>
-          {producto.descripcionCatalogo || `Producto #${id}`}
-        </Text>
-        {producto.nombreArtista ? (
-          <Text style={styles.artist} numberOfLines={1}>{producto.nombreArtista}</Text>
-        ) : null}
-        <View style={[styles.badge, { backgroundColor: estado.bg }]}>
-          <MaterialIcons name={estado.icon} size={14} color={estado.color} />
-          <Text style={[styles.badgeText, { color: estado.color }]}>{estado.label}</Text>
+    <View style={styles.card}>
+      <TouchableOpacity
+        style={styles.cardMain}
+        onPress={onPress}
+        activeOpacity={0.85}
+        accessibilityRole="button"
+        accessibilityLabel={`Ver ${producto.descripcionCatalogo || `producto ${id}`}`}
+      >
+        <View style={styles.thumbnail}>
+          <MaterialIcons name="image" size={28} color={palette.primary} />
         </View>
-      </View>
 
-      <MaterialIcons name="chevron-right" size={24} color={palette.muted} />
-    </TouchableOpacity>
+        <View style={styles.cardContent}>
+          <Text style={styles.cardTitle} numberOfLines={2}>
+            {producto.descripcionCatalogo || `Producto #${id}`}
+          </Text>
+          {producto.nombreArtista ? (
+            <Text style={styles.artist} numberOfLines={1}>{producto.nombreArtista}</Text>
+          ) : null}
+          <View style={[styles.badge, { backgroundColor: estado.bg }]}>
+            <MaterialIcons name={estado.icon} size={14} color={estado.color} />
+            <Text style={[styles.badgeText, { color: estado.color }]}>{estado.label}</Text>
+          </View>
+        </View>
+
+        <MaterialIcons name="chevron-right" size={24} color={palette.muted} />
+      </TouchableOpacity>
+      {puedeGestionarSeguro ? (
+        <TouchableOpacity style={styles.policyAction} onPress={onSeguro} activeOpacity={0.8}>
+          <MaterialIcons name="verified-user" size={17} color={palette.primary} />
+          <Text style={styles.policyActionText}>Ver póliza y mejorar cobertura</Text>
+          <MaterialIcons name="arrow-forward" size={16} color={palette.primary} />
+        </TouchableOpacity>
+      ) : null}
+      {producto.estado === 'vendido' ? (
+        <TouchableOpacity style={styles.policyAction} onPress={onVenta} activeOpacity={0.8}>
+          <MaterialIcons name="receipt-long" size={17} color={palette.success} />
+          <Text style={[styles.policyActionText, { color: palette.success }]}>Ver detalle de la venta</Text>
+          <MaterialIcons name="arrow-forward" size={16} color={palette.success} />
+        </TouchableOpacity>
+      ) : null}
+    </View>
   );
 }
 
@@ -168,7 +187,12 @@ export default function MisProductosScreen({ navigation, route }) {
         data={productos}
         keyExtractor={(item, index) => String(item.productoId ?? item.id ?? index)}
         renderItem={({ item }) => (
-          <ProductoCard producto={item} onPress={() => openProducto(item)} />
+          <ProductoCard
+            producto={item}
+            onPress={() => openProducto(item)}
+            onSeguro={() => navigation.navigate('PolizaProducto', { id: item.productoId ?? item.id })}
+            onVenta={() => navigation.navigate('ObjetoVendido', { id: item.productoId ?? item.id })}
+          />
         )}
         contentContainerStyle={[
           styles.list,
@@ -236,16 +260,14 @@ const styles = StyleSheet.create({
   emptyList: { flexGrow: 1 },
   summary: { color: palette.muted, fontSize: 13, fontWeight: '600', marginBottom: 12 },
   card: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    padding: 14,
     marginBottom: 12,
     borderRadius: 16,
     backgroundColor: palette.surface,
     borderWidth: 1,
     borderColor: palette.border,
+    overflow: 'hidden',
   },
+  cardMain: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14 },
   thumbnail: {
     width: 68,
     height: 68,
@@ -267,6 +289,8 @@ const styles = StyleSheet.create({
     marginTop: 9,
   },
   badgeText: { fontSize: 11, fontWeight: '800', textTransform: 'capitalize' },
+  policyAction: { flexDirection: 'row', alignItems: 'center', gap: 7, paddingHorizontal: 14, paddingVertical: 11, backgroundColor: palette.primaryFaint, borderTopWidth: 1, borderTopColor: palette.border },
+  policyActionText: { flex: 1, color: palette.primary, fontSize: 12, fontWeight: '800' },
   emptyState: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 28 },
   emptyIcon: {
     width: 76,

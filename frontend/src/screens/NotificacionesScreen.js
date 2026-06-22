@@ -34,11 +34,39 @@ const TIPO_CONFIG = {
   RECHAZADO: { icon: 'cancel', color: p.danger, bg: p.dangerFaint },
   CUENTA: { icon: 'verified-user', color: p.primary, bg: p.primaryFaint },
   MULTA: { icon: 'warning', color: p.warning, bg: p.warningFaint },
+  ENVIO_INSPECCION: { icon: 'local-shipping', color: p.primary, bg: p.primaryFaint },
+  PRODUCTO_ACEPTADO: { icon: 'check-circle', color: p.success, bg: p.successFaint },
+  PRODUCTO_RECHAZADO: { icon: 'cancel', color: p.danger, bg: p.dangerFaint },
+  SEGURO_APROBADO: { icon: 'verified-user', color: p.success, bg: p.successFaint },
+  SEGURO_RECHAZADO: { icon: 'shield', color: p.danger, bg: p.dangerFaint },
+  OBJETO_VENDIDO: { icon: 'sell', color: p.success, bg: p.successFaint },
+  PUJA_GANADA: { icon: 'emoji-events', color: p.success, bg: p.successFaint },
+  PAGO_CONFIRMADO: { icon: 'payments', color: p.success, bg: p.successFaint },
+  MULTA: { icon: 'gavel', color: p.danger, bg: p.dangerFaint },
+  MULTA_PAGADA: { icon: 'check-circle', color: p.success, bg: p.successFaint },
   DEFAULT: { icon: 'notifications', color: p.muted, bg: p.surfaceLow },
 };
 
 function getConfig(tipo) {
-  return TIPO_CONFIG[(tipo || '').toUpperCase()] || TIPO_CONFIG.DEFAULT;
+  const base = (tipo || '').split(':')[0].toUpperCase();
+  return TIPO_CONFIG[base] || TIPO_CONFIG.DEFAULT;
+}
+
+function notificationTarget(tipo) {
+  const [base, rawId] = (tipo || '').split(':');
+  const id = Number(rawId);
+  if (!Number.isInteger(id)) return null;
+  if (base === 'ENVIO_INSPECCION') return { screen: 'DireccionInspeccion', params: { id } };
+  if (base === 'PRODUCTO_ACEPTADO') return { screen: 'ProductoAceptado', params: { id } };
+  if (base === 'PRODUCTO_RECHAZADO') return { screen: 'MotivoRechazo', params: { id } };
+  if (base === 'OBJETO_VENDIDO') return { screen: 'ObjetoVendido', params: { id } };
+  if (base === 'PUJA_GANADA') return { screen: 'EntregaCompra', params: { id } };
+  if (base === 'PAGO_CONFIRMADO') return { screen: 'AdquisicionDetail', params: { id } };
+  if (base === 'MULTA' || base === 'MULTA_PAGADA') return { screen: 'MultaDetail', params: { id } };
+  if (base === 'SEGURO_APROBADO' || base === 'SEGURO_RECHAZADO') {
+    return { screen: 'PolizaProducto', params: { id } };
+  }
+  return null;
 }
 
 function formatFecha(fechaStr) {
@@ -96,6 +124,8 @@ export default function NotificacionesScreen({ navigation, route }) {
         );
       }
     }
+    const target = notificationTarget(notif.tipo);
+    if (target) navigation.navigate(target.screen, target.params);
   }
 
   if (loading) return <Loading text="Cargando notificaciones..." />;

@@ -10,5 +10,9 @@ public record AdquisicionDto(
         BigDecimal importe,
         BigDecimal comision,
         String estado,
-        LocalDateTime fecha
+        LocalDateTime fecha,
+        BigDecimal costoEnvio,
+        BigDecimal total,
+        String moneda,
+        boolean entregaDefinida
 ) {}

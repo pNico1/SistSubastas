@@ -27,20 +27,24 @@ function medioLabel(m) {
 
 export default function PagoAdquisicionScreen({ navigation, route }) {
   const insets = useSafeAreaInsets();
-  const { id, importe, comision } = route.params;
-  const total = num(importe) + num(comision);
+  const { id } = route.params;
 
   const [medios, setMedios] = useState([]);
   const [selected, setSelected] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [paying, setPaying] = useState(false);
+  const [compra, setCompra] = useState(null);
 
   const load = useCallback(async () => {
     setError(null);
     try {
-      const data = await clienteApi.metodosPago();
-      const verificados = (Array.isArray(data) ? data : []).filter((m) => m.estado === 'verified');
+      const [data, detalle] = await Promise.all([
+        clienteApi.metodosPago(), adquisicionesApi.getById(id),
+      ]);
+      setCompra(detalle);
+      const verificados = (Array.isArray(data) ? data : []).filter((m) =>
+        m.estado === 'verified' && (!m.moneda || m.moneda === detalle.moneda));
       setMedios(verificados);
       if (verificados.length === 1) setSelected(verificados[0].id);
     } catch (err) {
@@ -48,7 +52,7 @@ export default function PagoAdquisicionScreen({ navigation, route }) {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [id]);
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
@@ -66,7 +70,7 @@ export default function PagoAdquisicionScreen({ navigation, route }) {
         confirmacionTerminos: true,
       });
       Alert.alert('Pago realizado', 'La pieza quedó pagada.', [
-        { text: 'OK', onPress: () => goBackOrReturnTo(navigation, route) },
+        { text: 'OK', onPress: () => navigation.replace('AdquisicionDetail', { id }) },
       ]);
     } catch (e) {
       Alert.alert('No se pudo pagar', e?.response?.data?.message || e.message || 'Intentá de nuevo.');
@@ -75,8 +79,27 @@ export default function PagoAdquisicionScreen({ navigation, route }) {
     }
   }
 
+  function informarSinFondos() {
+    Alert.alert(
+      'No puedo pagar ahora',
+      'Se generará una multa del 10% de tu oferta. Deberás abonarla antes de participar nuevamente y presentar los fondos dentro de 72 horas.',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        { text: 'Confirmar', style: 'destructive', onPress: async () => {
+          try {
+            const multa = await adquisicionesApi.declararSinFondos(id);
+            navigation.replace('MultaDetail', { id: multa.id });
+          } catch (e) {
+            Alert.alert('No se pudo registrar', e?.response?.data?.message || e.message);
+          }
+        } },
+      ],
+    );
+  }
+
   if (loading) return <Loading text="Cargando medios de pago..." />;
   if (error) return <ErrorView error={error} onRetry={() => { setLoading(true); load(); }} />;
+  const total = num(compra?.total);
 
   return (
     <View style={styles.screen}>
@@ -91,9 +114,9 @@ export default function PagoAdquisicionScreen({ navigation, route }) {
       <ScrollView contentContainerStyle={[styles.body, { paddingBottom: insets.bottom + 24 }]}>
         <View style={styles.totalCard}>
           <Text style={styles.totalLabel}>TOTAL A PAGAR</Text>
-          <Text style={styles.totalValue}>${total.toLocaleString('es-AR')}</Text>
+          <Text style={styles.totalValue}>{compra?.moneda || 'ARS'} {total.toLocaleString('es-AR')}</Text>
           <Text style={styles.totalSub}>
-            Incluye ${num(importe).toLocaleString('es-AR')} de oferta + ${num(comision).toLocaleString('es-AR')} de comisión
+            Incluye {num(compra?.importe).toLocaleString('es-AR')} de oferta + {num(compra?.comision).toLocaleString('es-AR')} de comisión + {num(compra?.costoEnvio).toLocaleString('es-AR')} de envío
           </Text>
         </View>
 
@@ -144,6 +167,9 @@ export default function PagoAdquisicionScreen({ navigation, route }) {
           {paying ? <ActivityIndicator color="#fff" />
             : <><MaterialIcons name="lock" size={18} color="#fff" /><Text style={styles.payBtnText}>Pagar ahora</Text></>}
         </TouchableOpacity>
+        <TouchableOpacity style={styles.noFunds} onPress={informarSinFondos} disabled={paying}>
+          <Text style={styles.noFundsText}>No tengo fondos para pagar ahora</Text>
+        </TouchableOpacity>
       </ScrollView>
     </View>
   );
@@ -180,4 +206,6 @@ const styles = StyleSheet.create({
     backgroundColor: palette.primary, borderRadius: 14, paddingVertical: 16, marginTop: 24,
   },
   payBtnText: { color: '#fff', fontSize: 16, fontWeight: '800' },
+  noFunds: { alignItems: 'center', paddingVertical: 14, marginTop: 7 },
+  noFundsText: { color: palette.danger, fontSize: 13, fontWeight: '800' },
 });

@@ -23,16 +23,24 @@ public class AdquisicionService {
     private final MedioPagoRepository medioPagoRepo;
     private final PagoRepository pagoRepo;
     private final PersonaRepository personaRepo;
+    private final EntregaRepository entregaRepo;
+    private final SubastaRepository subastaRepo;
+    private final NotificacionService notificacionService;
 
     public AdquisicionService(RegistroDeSubastaRepository rdsRepo, ProductoRepository productoRepo,
                               FacturaRepository facturaRepo, MedioPagoRepository medioPagoRepo,
-                              PagoRepository pagoRepo, PersonaRepository personaRepo) {
+                              PagoRepository pagoRepo, PersonaRepository personaRepo,
+                              EntregaRepository entregaRepo, SubastaRepository subastaRepo,
+                              NotificacionService notificacionService) {
         this.rdsRepo = rdsRepo;
         this.productoRepo = productoRepo;
         this.facturaRepo = facturaRepo;
         this.medioPagoRepo = medioPagoRepo;
         this.pagoRepo = pagoRepo;
         this.personaRepo = personaRepo;
+        this.entregaRepo = entregaRepo;
+        this.subastaRepo = subastaRepo;
+        this.notificacionService = notificacionService;
     }
 
     public List<AdquisicionDto> listar(String estado) {
@@ -79,6 +87,10 @@ public class AdquisicionService {
             throw ApiException.conflict(ErrorCodes.ADQUISICION_ALREADY_PAID,
                     "La adquisicion ya fue pagada");
         }
+        if (entregaRepo.findByAdquisicion(id).isEmpty()) {
+            throw ApiException.conflict(ErrorCodes.ENTREGA_NOT_GENERATED,
+                    "Elegí retiro o envío antes de pagar la compra");
+        }
 
         MedioPago medio = requireMedioVerificado(req.paymentMethodId(), p.clienteId());
 
@@ -86,8 +98,17 @@ public class AdquisicionService {
         BigDecimal total = facturaRepo.findByAdquisicion(id)
                 .map(Factura::getTotal)
                 .orElse(nz(r.getImporte()).add(nz(r.getComision())));
-        String moneda = (req.moneda() != null) ? req.moneda()
-                : (medio.getMoneda() != null ? medio.getMoneda() : "ARS");
+        String moneda = subastaRepo.findById(r.getSubasta()).map(s -> s.getMoneda()).orElse("ARS");
+        if (moneda == null || moneda.isBlank()) moneda = "ARS";
+        if (medio.getMoneda() != null && !moneda.equalsIgnoreCase(medio.getMoneda())) {
+            throw ApiException.unprocessable(ErrorCodes.INVALID_DATA,
+                    "La subasta debe pagarse en " + moneda + " con un medio compatible");
+        }
+        if ("USD".equalsIgnoreCase(moneda) && "tarjeta".equals(medio.getTipo())
+                && !"si".equals(medio.getEsInternacional())) {
+            throw ApiException.unprocessable(ErrorCodes.INVALID_DATA,
+                    "Para pagar en USD la tarjeta debe ser internacional");
+        }
 
         Pago pago = new Pago();
         pago.setAdquisicion(id);
@@ -100,6 +121,9 @@ public class AdquisicionService {
 
         r.setEstado("pagado");
         rdsRepo.save(r);
+
+        notificacionService.crearParaCliente(p.clienteId(), "PAGO_CONFIRMADO:" + id,
+                "Recibimos el pago de tu compra. Ya podés consultar el retiro o seguimiento de la entrega.");
 
         return new PagoResponse(pago.getId(), id, "pagado", pago.getFechaPago(), total, moneda,
                 new PagoResponse.MedioDePagoRef(medio.getId(), medio.getTipo(), medio.getUltimos4()));
@@ -137,8 +161,15 @@ public class AdquisicionService {
     private AdquisicionDto toDto(RegistroDeSubasta r) {
         String desc = productoRepo.findById(r.getProducto())
                 .map(Producto::getDescripcionCatalogo).orElse(null);
+        Factura factura = facturaRepo.findByAdquisicion(r.getIdentificador()).orElse(null);
+        String moneda = subastaRepo.findById(r.getSubasta()).map(s -> s.getMoneda()).orElse("ARS");
+        BigDecimal costoEnvio = factura == null ? BigDecimal.ZERO : nz(factura.getCostoEnvio());
+        BigDecimal total = factura == null
+                ? nz(r.getImporte()).add(nz(r.getComision()))
+                : nz(factura.getTotal());
         return new AdquisicionDto(r.getIdentificador(), r.getProducto(), desc,
-                r.getImporte(), r.getComision(), r.getEstado(), r.getFecha());
+                r.getImporte(), r.getComision(), r.getEstado(), r.getFecha(), costoEnvio,
+                total, moneda, entregaRepo.findByAdquisicion(r.getIdentificador()).isPresent());
     }
 
     private BigDecimal nz(BigDecimal v) { return v == null ? BigDecimal.ZERO : v; }

@@ -8,5 +8,6 @@ import java.util.Optional;
 
 public interface CompraEmpresaRepository extends JpaRepository<CompraEmpresa, Integer> {
     Optional<CompraEmpresa> findBySubastaAndProducto(Integer subasta, Integer producto);
+    Optional<CompraEmpresa> findFirstByProducto(Integer producto);
     List<CompraEmpresa> findBySubasta(Integer subasta);
 }

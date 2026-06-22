@@ -11,6 +11,7 @@ import com.subastas.api.domain.Devolucion;
 import com.subastas.api.domain.Revision;
 import com.subastas.api.dto.CreateProductoRequest;
 import com.subastas.api.dto.DevolucionResponse;
+import com.subastas.api.dto.EnvioInspeccionResponse;
 import com.subastas.api.dto.ProductoDetalleDto;
 import com.subastas.api.dto.ProductoCreatedDto;
 import com.subastas.api.dto.ProductoDto;
@@ -27,6 +28,7 @@ import com.subastas.api.repository.RevisionRepository;
 import com.subastas.api.security.AuthPrincipal;
 import com.subastas.api.security.CurrentUser;
 import org.springframework.http.HttpStatus;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -53,11 +55,17 @@ public class ProductoDuenioService {
     private final RevisionRepository revisionRepo;
     private final DevolucionRepository devolucionRepo;
     private final ProductoConsultaService consultaService;
+    private final NotificacionService notificacionService;
+    private final SeguroService seguroService;
+
+    @Value("${app.inspeccion.direccion:Av. del Puerto 1450, Depósito 3, CABA}")
+    private String direccionInspeccion;
 
     public ProductoDuenioService(ProductoRepository productoRepo, FotoRepository fotoRepo,
                                  DuenioRepository duenioRepo, ClienteRepository clienteRepo,
                                  EmpleadoRepository empleadoRepo, RevisionRepository revisionRepo,
-                                 DevolucionRepository devolucionRepo, ProductoConsultaService consultaService) {
+                                 DevolucionRepository devolucionRepo, ProductoConsultaService consultaService,
+                                 NotificacionService notificacionService, SeguroService seguroService) {
         this.productoRepo = productoRepo;
         this.fotoRepo = fotoRepo;
         this.duenioRepo = duenioRepo;
@@ -66,11 +74,15 @@ public class ProductoDuenioService {
         this.revisionRepo = revisionRepo;
         this.devolucionRepo = devolucionRepo;
         this.consultaService = consultaService;
+        this.notificacionService = notificacionService;
+        this.seguroService = seguroService;
     }
 
     public List<ProductoDto> misProductos() {
         AuthPrincipal p = CurrentUser.get();
-        return productoRepo.findByDuenio(p.personaId()).stream().map(this::toDto).toList();
+        List<Producto> productos = productoRepo.findByDuenio(p.personaId());
+        productos.forEach(seguroService::asegurarSiCorresponde);
+        return productos.stream().map(this::toDto).toList();
     }
 
     public ProductoDto getById(Integer id) {
@@ -84,7 +96,8 @@ public class ProductoDuenioService {
     }
 
     public ProductoDetalleDto getDetalleById(Integer id) {
-        requireOwned(id);
+        Producto producto = requireOwned(id);
+        seguroService.asegurarSiCorresponde(producto);
         return consultaService.getProductoById(id);
     }
 
@@ -119,6 +132,13 @@ public class ProductoDuenioService {
                 .orElseThrow(() -> ApiException.notFound(ErrorCodes.NOT_FOUND, "Devolucion no encontrada"));
         return new DevolucionResponse(d.getEstadoEnvio(), d.getTransportista(), d.getCodigoSeguimiento(),
                 d.getCostoEnvio(), d.getMoneda(), d.getDireccion());
+    }
+
+    public EnvioInspeccionResponse getInspectionShippingDetails(Integer id) {
+        Producto producto = requireOwned(id);
+        return new EnvioInspeccionResponse(id, producto.getDescripcionCatalogo(), direccionInspeccion,
+                "Enviá o acercá el bien a esta dirección para que la empresa realice la inspección.",
+                "Si el bien no es aceptado, será devuelto con cargo a su dueño.");
     }
 
     /**
@@ -166,6 +186,9 @@ public class ProductoDuenioService {
             f.setOrden(orden++);
             fotoRepo.save(f);
         }
+
+        notificacionService.crearParaCliente(p.personaId(), "ENVIO_INSPECCION:" + prod.getIdentificador(),
+                "Recibimos tu solicitud. Consultá la dirección donde debés enviar el producto para su inspección.");
 
         return new ProductoCreatedDto(
                 prod.getIdentificador(), prod.getEstado(), prod.getDescripcionCatalogo(),

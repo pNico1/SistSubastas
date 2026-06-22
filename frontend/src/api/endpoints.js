@@ -73,10 +73,14 @@ export const productosApi = {
     client.patch(`/api/clientes/me/productos/${id}/terminos`, { aceptados }).then((r) => r.data),
   getDevolucion: (id) =>
     client.get(`/api/clientes/me/productos/${id}/devolucion`).then((r) => r.data),
+  getEnvioInspeccion: (id) =>
+    client.get(`/api/clientes/me/productos/${id}/envio-inspeccion`).then((r) => r.data),
   getSeguros: (id) =>
     client.get(`/api/clientes/me/productos/${id}/seguros`).then((r) => r.data),
   requestUpgradeSeguro: (id, data) =>
     client.patch(`/api/clientes/me/productos/${id}/seguros`, data).then((r) => r.data),
+  getVenta: (id) =>
+    client.get(`/api/clientes/me/productos/${id}/venta`).then((r) => r.data),
 };
 
 // ---- CLIENTE (me) ----
@@ -121,11 +125,19 @@ export const adquisicionesApi = {
   // data: { paymentMethodId, moneda, confirmacionTerminos }
   pagar: (id, data) =>
     client.post(`/api/clientes/me/adquisiciones/${id}/payment`, data).then((r) => r.data),
+  seleccionarEnvio: (id, direccion) =>
+    client.post(`/api/clientes/me/adquisiciones/${id}/entrega/envio`, { direccion }).then((r) => r.data),
+  seleccionarRetiro: (id) =>
+    client.post(`/api/clientes/me/adquisiciones/${id}/entrega/retiro`, { confirmar: true }).then((r) => r.data),
+  entrega: (id) => client.get(`/api/clientes/me/adquisiciones/${id}/entrega`).then((r) => r.data),
+  declararSinFondos: (id) =>
+    client.post(`/api/clientes/me/adquisiciones/${id}/sin-fondos`).then((r) => r.data),
 };
 
 // ---- MULTAS (Área 1) ----
 export const multasApi = {
   listar: () => client.get('/api/clientes/me/fines').then((r) => r.data),
+  getById: (id) => client.get(`/api/clientes/me/fines/${id}`).then((r) => r.data),
   pagar: (id, paymentMethodId) =>
     client.post(`/api/clientes/me/fines/${id}/payment`, { paymentMethodId }).then((r) => r.data),
 };
@@ -134,6 +146,9 @@ export const multasApi = {
 export const adminApi = {
   // ---- Área 2: catálogos paginados ----
   listarCatalogos: (params = {}) => client.get('/api/admin/catalogos', { params }).then((r) => r.data),
+  solicitudesSeguro: (params = {}) => client.get('/api/admin/solicitudes-seguro', { params }).then((r) => r.data),
+  aprobarSolicitudSeguro: (id) => client.put(`/api/admin/solicitudes-seguro/${id}/aprobar`).then((r) => r.data),
+  rechazarSolicitudSeguro: (id) => client.put(`/api/admin/solicitudes-seguro/${id}/rechazar`).then((r) => r.data),
   // ---- fin Área 2 ----
   verificarCliente: (id, data = {}) => client.put(`/api/admin/clientes/${id}/verificar`, data).then((r) => r.data),
   verificarMetodoPago: (id) => client.put(`/api/admin/metodos-pago/${id}/verificar`).then((r) => r.data),

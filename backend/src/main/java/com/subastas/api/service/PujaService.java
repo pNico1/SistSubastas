@@ -30,6 +30,7 @@ public class PujaService {
     private final NotificacionRepository notificacionRepo;
     private final UsuarioRepository usuarioRepo;
     private final RegistroDeSubastaRepository registroRepo;
+    private final MultaRepository multaRepo;
 
     public PujaService(SubastaService subastaService, SubastaTiempoService tiempoService,
                        ClienteRepository clienteRepo,
@@ -37,7 +38,8 @@ public class PujaService {
                        MedioPagoRepository medioPagoRepo, ItemCatalogoRepository itemRepo,
                        CatalogoRepository catalogoRepo, ProductoRepository productoRepo,
                        SubastaRepository subastaRepo, NotificacionRepository notificacionRepo,
-                       UsuarioRepository usuarioRepo, RegistroDeSubastaRepository registroRepo) {
+                       UsuarioRepository usuarioRepo, RegistroDeSubastaRepository registroRepo,
+                       MultaRepository multaRepo) {
         this.subastaService = subastaService;
         this.tiempoService = tiempoService;
         this.clienteRepo = clienteRepo;
@@ -51,6 +53,7 @@ public class PujaService {
         this.notificacionRepo = notificacionRepo;
         this.usuarioRepo = usuarioRepo;
         this.registroRepo = registroRepo;
+        this.multaRepo = multaRepo;
     }
 
     @Transactional
@@ -58,6 +61,7 @@ public class PujaService {
         AuthPrincipal p = CurrentUser.requireCliente();
         requireActiveAccount(p);
         Integer clienteId = p.clienteId();
+        requireSinMultasPendientes(clienteId);
 
         Subasta subasta = subastaService.findSubasta(subastaId);
 
@@ -160,6 +164,7 @@ public class PujaService {
         AuthPrincipal p = CurrentUser.requireCliente();
         requireActiveAccount(p);
         Integer clienteId = p.clienteId();
+        requireSinMultasPendientes(clienteId);
 
         // No se puede unir a una subasta sin un medio de pago verificado.
         if (!medioPagoRepo.existsByClienteAndEstado(clienteId, "verified")) {
@@ -278,6 +283,13 @@ public class PujaService {
         if (!"active".equals(estado)) {
             throw ApiException.forbidden(ErrorCodes.ACCOUNT_REGISTRATION_INCOMPLETE,
                     "Tenes que completar el registro antes de participar en subastas");
+        }
+    }
+
+    private void requireSinMultasPendientes(Integer clienteId) {
+        if (multaRepo.existsByClienteAndEstado(clienteId, "pending")) {
+            throw ApiException.forbidden(ErrorCodes.NOT_ALLOWED,
+                    "Tenés una multa pendiente. Debés pagarla antes de participar en otra subasta");
         }
     }
 

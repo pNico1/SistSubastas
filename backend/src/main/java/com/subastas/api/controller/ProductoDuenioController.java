@@ -51,6 +51,11 @@ public class ProductoDuenioController {
         return service.getProductReturnDetails(id);
     }
 
+    @GetMapping("/{id}/envio-inspeccion")
+    public EnvioInspeccionResponse getInspectionShippingDetails(@PathVariable Integer id) {
+        return service.getInspectionShippingDetails(id);
+    }
+
     @GetMapping("/{id}/seguros")
     public SeguroProductoResponse getSegurosByProducto(@PathVariable Integer id) {
         return seguroService.getSegurosByProducto(id);

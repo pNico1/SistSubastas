@@ -367,33 +367,18 @@ CREATE TABLE solicitudesAumentoSeguro (
     CONSTRAINT fk_solicitudesAumentoSeguro_productos
         FOREIGN KEY (producto) REFERENCES productos (identificador)
 );
--- ---- fin Área 2 -------------------------------------------------------------
 
--- ---- Área 2: dueño / producto / revisión / seguros -------------------------
--- Tablas satélite: no se agregan columnas a las tablas originales.
-CREATE TABLE devoluciones (
-    producto           INT           NOT NULL,
-    estadoEnvio        VARCHAR(20)   NOT NULL DEFAULT 'preparando'
-        CHECK (estadoEnvio IN ('preparando','en_camino','entregado')),
-    transportista      VARCHAR(150)  NULL,
-    codigoSeguimiento  VARCHAR(100)  NULL,
-    costoEnvio         DECIMAL(18,2) NULL CHECK (costoEnvio >= 0),
-    moneda             VARCHAR(3)    NOT NULL DEFAULT 'ARS' CHECK (moneda IN ('ARS','USD')),
-    direccion          VARCHAR(350)  NULL,
-    CONSTRAINT pk_devoluciones PRIMARY KEY (producto),
-    CONSTRAINT fk_devoluciones_productos FOREIGN KEY (producto) REFERENCES productos (identificador)
-);
-
-CREATE TABLE solicitudesAumentoSeguro (
-    id                   INT           NOT NULL AUTO_INCREMENT,
-    producto             INT           NOT NULL,
-    nuevoValorAsegurado  DECIMAL(18,2) NOT NULL CHECK (nuevoValorAsegurado > 0),
-    estado               VARCHAR(15)   NOT NULL DEFAULT 'pendiente'
-        CHECK (estado IN ('pendiente','aprobada','rechazada')),
-    fecha                DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT pk_solicitudesAumentoSeguro PRIMARY KEY (id),
-    CONSTRAINT fk_solicitudesAumentoSeguro_productos
-        FOREIGN KEY (producto) REFERENCES productos (identificador)
+CREATE TABLE pagosAumentoSeguro (
+    id         INT           NOT NULL AUTO_INCREMENT,
+    solicitud  INT           NOT NULL,
+    importe    DECIMAL(18,2) NOT NULL CHECK (importe >= 0),
+    moneda     VARCHAR(3)    NOT NULL DEFAULT 'ARS' CHECK (moneda IN ('ARS','USD')),
+    estado     VARCHAR(15)   NOT NULL DEFAULT 'pagado' CHECK (estado IN ('pendiente','pagado')),
+    fecha      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT pk_pagosAumentoSeguro PRIMARY KEY (id),
+    CONSTRAINT uq_pagosAumentoSeguro_solicitud UNIQUE (solicitud),
+    CONSTRAINT fk_pagosAumentoSeguro_solicitud
+        FOREIGN KEY (solicitud) REFERENCES solicitudesAumentoSeguro (id)
 );
 -- ---- fin Área 2 -------------------------------------------------------------
 
@@ -525,6 +510,42 @@ BEGIN
        AND NEW.fecha <= DATE_ADD(CURDATE(), INTERVAL 10 DAY) THEN
         SIGNAL SQLSTATE '45000'
             SET MESSAGE_TEXT = 'La subasta debe crearse con al menos 10 dias de anticipacion';
+    END IF;
+END$$
+
+-- Una póliza combinada solo puede cubrir piezas pertenecientes al mismo dueño.
+CREATE TRIGGER trg_productos_seguro_ins BEFORE INSERT ON productos
+FOR EACH ROW
+BEGIN
+    IF NEW.seguro IS NOT NULL THEN
+        IF EXISTS (SELECT 1 FROM productos p WHERE p.seguro = NEW.seguro AND p.duenio <> NEW.duenio) THEN
+            SIGNAL SQLSTATE '45000'
+                SET MESSAGE_TEXT = 'Una poliza solo puede combinar piezas del mismo duenio';
+        END IF;
+        IF EXISTS (SELECT 1 FROM productos p WHERE p.seguro = NEW.seguro)
+           AND COALESCE((SELECT s.polizaCombinada FROM seguros s WHERE s.nroPoliza = NEW.seguro), 'no') <> 'si' THEN
+            SIGNAL SQLSTATE '45000'
+                SET MESSAGE_TEXT = 'La poliza no admite multiples piezas';
+        END IF;
+    END IF;
+END$$
+
+CREATE TRIGGER trg_productos_seguro_upd BEFORE UPDATE ON productos
+FOR EACH ROW
+BEGIN
+    IF NEW.seguro IS NOT NULL AND NOT (NEW.seguro <=> OLD.seguro) THEN
+        IF EXISTS (SELECT 1 FROM productos p
+                   WHERE p.seguro = NEW.seguro AND p.identificador <> NEW.identificador
+                     AND p.duenio <> NEW.duenio) THEN
+            SIGNAL SQLSTATE '45000'
+                SET MESSAGE_TEXT = 'Una poliza solo puede combinar piezas del mismo duenio';
+        END IF;
+        IF EXISTS (SELECT 1 FROM productos p
+                   WHERE p.seguro = NEW.seguro AND p.identificador <> NEW.identificador)
+           AND COALESCE((SELECT s.polizaCombinada FROM seguros s WHERE s.nroPoliza = NEW.seguro), 'no') <> 'si' THEN
+            SIGNAL SQLSTATE '45000'
+                SET MESSAGE_TEXT = 'La poliza no admite multiples piezas';
+        END IF;
     END IF;
 END$$
 

@@ -4,16 +4,22 @@ import com.subastas.api.common.ApiException;
 import com.subastas.api.common.ErrorCodes;
 import com.subastas.api.common.dto.MessageResponse;
 import com.subastas.api.domain.Entrega;
+import com.subastas.api.domain.Factura;
 import com.subastas.api.domain.RegistroDeSubasta;
 import com.subastas.api.dto.*;
 import com.subastas.api.repository.EntregaRepository;
+import com.subastas.api.repository.FacturaRepository;
 import com.subastas.api.repository.RegistroDeSubastaRepository;
+import com.subastas.api.repository.SubastaRepository;
 import com.subastas.api.security.AuthPrincipal;
 import com.subastas.api.security.CurrentUser;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.beans.factory.annotation.Value;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 /**
@@ -27,15 +33,26 @@ public class EntregaService {
 
     private final EntregaRepository entregaRepo;
     private final RegistroDeSubastaRepository rdsRepo;
+    private final FacturaRepository facturaRepo;
+    private final SubastaRepository subastaRepo;
 
-    public EntregaService(EntregaRepository entregaRepo, RegistroDeSubastaRepository rdsRepo) {
+    @Value("${app.entregas.costo-envio-ars:15000}")
+    private BigDecimal costoEnvioArs;
+
+    @Value("${app.entregas.costo-envio-usd:50}")
+    private BigDecimal costoEnvioUsd;
+
+    public EntregaService(EntregaRepository entregaRepo, RegistroDeSubastaRepository rdsRepo,
+                          FacturaRepository facturaRepo, SubastaRepository subastaRepo) {
         this.entregaRepo = entregaRepo;
         this.rdsRepo = rdsRepo;
+        this.facturaRepo = facturaRepo;
+        this.subastaRepo = subastaRepo;
     }
 
     @Transactional
     public MessageResponse seleccionarEnvio(Integer adquisicionId, SeleccionEnvioRequest req) {
-        requireOwned(adquisicionId);
+        RegistroDeSubasta adquisicion = requireOwned(adquisicionId);
         requireSinEntrega(adquisicionId);
         if (req == null || req.direccion() == null || req.direccion().isBlank()) {
             throw ApiException.unprocessable(ErrorCodes.INVALID_DATA, "La direccion de envio es obligatoria");
@@ -49,12 +66,13 @@ public class EntregaService {
         e.setCodigoSeguimiento("AE" + UUID.randomUUID().toString().substring(0, 9).toUpperCase());
         e.setFechaEstimada(LocalDate.now().plusDays(7));
         entregaRepo.save(e);
+        generarFactura(adquisicion, costoEnvio(adquisicion));
         return MessageResponse.of("Entrega por envio seleccionada");
     }
 
     @Transactional
     public MessageResponse seleccionarRetiro(Integer adquisicionId, SeleccionRetiroRequest req) {
-        requireOwned(adquisicionId);
+        RegistroDeSubasta adquisicion = requireOwned(adquisicionId);
         requireSinEntrega(adquisicionId);
         if (req == null || !Boolean.TRUE.equals(req.confirmar())) {
             throw ApiException.unprocessable(ErrorCodes.INVALID_DATA, "Debes confirmar el retiro");
@@ -67,6 +85,7 @@ public class EntregaService {
         e.setCodigoRetiro("RET-" + UUID.randomUUID().toString().substring(0, 6).toUpperCase());
         e.setFechaEstimada(LocalDate.now().plusDays(3));
         entregaRepo.save(e);
+        generarFactura(adquisicion, BigDecimal.ZERO);
         return MessageResponse.of("Entrega por retiro seleccionada");
     }
 
@@ -131,5 +150,27 @@ public class EntregaService {
                     "La entrega no es de tipo " + tipo);
         }
         return e;
+    }
+
+    private BigDecimal costoEnvio(RegistroDeSubasta adquisicion) {
+        String moneda = subastaRepo.findById(adquisicion.getSubasta())
+                .map(s -> s.getMoneda()).orElse("ARS");
+        return "USD".equalsIgnoreCase(moneda) ? costoEnvioUsd : costoEnvioArs;
+    }
+
+    private void generarFactura(RegistroDeSubasta r, BigDecimal costoEnvio) {
+        Factura f = facturaRepo.findByAdquisicion(r.getIdentificador()).orElseGet(Factura::new);
+        f.setAdquisicion(r.getIdentificador());
+        f.setNumeroFactura("F" + r.getSubasta() + "-" + r.getIdentificador());
+        f.setImporte(nz(r.getImporte()));
+        f.setComision(nz(r.getComision()));
+        f.setCostoEnvio(nz(costoEnvio));
+        f.setTotal(nz(r.getImporte()).add(nz(r.getComision())).add(nz(costoEnvio)));
+        if (f.getFecha() == null) f.setFecha(LocalDateTime.now());
+        facturaRepo.save(f);
+    }
+
+    private BigDecimal nz(BigDecimal value) {
+        return value == null ? BigDecimal.ZERO : value;
     }
 }

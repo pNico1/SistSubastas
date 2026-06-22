@@ -4,6 +4,8 @@ import com.subastas.api.domain.Multa;
 import com.subastas.api.domain.RegistroDeSubasta;
 import com.subastas.api.repository.MultaRepository;
 import com.subastas.api.repository.RegistroDeSubastaRepository;
+import com.subastas.api.repository.UsuarioRepository;
+import com.subastas.api.service.NotificacionService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -28,10 +30,15 @@ public class MultaScheduler {
 
     private final RegistroDeSubastaRepository registroRepo;
     private final MultaRepository multaRepo;
+    private final NotificacionService notificacionService;
+    private final UsuarioRepository usuarioRepo;
 
-    public MultaScheduler(RegistroDeSubastaRepository registroRepo, MultaRepository multaRepo) {
+    public MultaScheduler(RegistroDeSubastaRepository registroRepo, MultaRepository multaRepo,
+                          NotificacionService notificacionService, UsuarioRepository usuarioRepo) {
         this.registroRepo = registroRepo;
         this.multaRepo = multaRepo;
+        this.notificacionService = notificacionService;
+        this.usuarioRepo = usuarioRepo;
     }
 
     @Scheduled(fixedDelayString = "${app.multas.scheduler-ms:60000}", initialDelayString = "30000")
@@ -51,13 +58,33 @@ public class MultaScheduler {
             m.setEstado("pending");
             m.setFechaLimite(LocalDate.now().plusDays(3));   // 72hs para presentar los fondos
             m.setFecha(LocalDateTime.now());
-            multaRepo.save(m);
+            m = multaRepo.save(m);
 
             r.setEstado("en_mora");
             registroRepo.save(r);
 
+            notificacionService.crearParaCliente(r.getCliente(), "MULTA:" + m.getId(),
+                    "Venció el plazo de pago. Se generó una multa del 10% de tu oferta; debés abonarla antes de participar nuevamente.");
+
             log.info("Multa por mora generada para adquisicion {} (cliente {})",
                     r.getIdentificador(), r.getCliente());
+        }
+
+        // Si tampoco presenta los fondos dentro de las 72 horas posteriores a
+        // la multa, el caso sale del alcance de la app y la cuenta se suspende.
+        for (RegistroDeSubasta r : registroRepo.findByEstado("en_mora")) {
+            multaRepo.findByAdquisicion(r.getIdentificador()).ifPresent(m -> {
+                if (!"pending".equals(m.getEstado()) || m.getFechaLimite() == null
+                        || !m.getFechaLimite().isBefore(LocalDate.now())) return;
+                usuarioRepo.findByPersona(r.getCliente()).ifPresent(usuario -> {
+                    if (!"suspended".equals(usuario.getEstadoRegistro())) {
+                        usuario.setEstadoRegistro("suspended");
+                        usuarioRepo.save(usuario);
+                        log.warn("Cuenta suspendida por incumplimiento de la adquisicion {}",
+                                r.getIdentificador());
+                    }
+                });
+            });
         }
     }
 }

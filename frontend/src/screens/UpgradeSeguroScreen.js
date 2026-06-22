@@ -35,8 +35,6 @@ export default function UpgradeSeguroScreen({ navigation, route }) {
   const [valorError, setValorError] = useState(null);
   const [submitting, setSubmitting] = useState(false);
 
-  // NOTA: endpoint pendiente -> GET /api/clientes/me/productos/{id}/seguros
-  // Se asume: { numero, cobertura, valorAsegurado, moneda, premioActual, costoPorUnidad }
   const load = useCallback(async () => {
     setError(null);
     try {

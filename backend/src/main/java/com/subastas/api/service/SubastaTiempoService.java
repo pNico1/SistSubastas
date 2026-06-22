@@ -57,11 +57,13 @@ public class SubastaTiempoService {
     private final AsistenteRepository asistenteRepo;
     private final ProductoRepository productoRepo;
     private final CompraEmpresaRepository compraEmpresaRepo;
+    private final NotificacionService notificacionService;
 
     public SubastaTiempoService(SubastaRepository subastaRepo, CatalogoRepository catalogoRepo,
                                 ItemCatalogoRepository itemRepo, PujoRepository pujoRepo,
                                 RegistroDeSubastaRepository registroRepo, AsistenteRepository asistenteRepo,
-                                ProductoRepository productoRepo, CompraEmpresaRepository compraEmpresaRepo) {
+                                ProductoRepository productoRepo, CompraEmpresaRepository compraEmpresaRepo,
+                                NotificacionService notificacionService) {
         this.subastaRepo = subastaRepo;
         this.catalogoRepo = catalogoRepo;
         this.itemRepo = itemRepo;
@@ -70,6 +72,7 @@ public class SubastaTiempoService {
         this.asistenteRepo = asistenteRepo;
         this.productoRepo = productoRepo;
         this.compraEmpresaRepo = compraEmpresaRepo;
+        this.notificacionService = notificacionService;
     }
 
     /**
@@ -165,6 +168,24 @@ public class SubastaTiempoService {
 
         item.setSubastado("si");
         itemRepo.save(item);
+        boolean ventaRegistrada = ganador == null
+                ? compraEmpresaRepo.findBySubastaAndProducto(subastaId, item.getProducto()).isPresent()
+                : registroRepo.findBySubasta(subastaId).stream()
+                        .anyMatch(r -> item.getProducto().equals(r.getProducto()));
+        if (ventaRegistrada) registrarVentaDelProducto(item.getProducto(), ganador == null);
+    }
+
+    private void registrarVentaDelProducto(Integer productoId, boolean compradaPorEmpresa) {
+        Producto producto = productoRepo.findById(productoId).orElse(null);
+        if (producto == null) return;
+        producto.setEstado("vendido");
+        producto.setDisponible("no");
+        productoRepo.save(producto);
+        String mensaje = compradaPorEmpresa
+                ? "Tu objeto fue comprado por la empresa al valor base porque no recibio pujas. Consulta el detalle de la venta."
+                : "Tu objeto fue vendido al mejor postor. Consulta el precio final y el importe neto de la venta.";
+        notificacionService.crearParaCliente(producto.getDuenio(),
+                "OBJETO_VENDIDO:" + productoId, mensaje);
     }
 
     /** Registra la compra de la empresa de una pieza sin pujas. Idempotente. */
@@ -206,7 +227,9 @@ public class SubastaTiempoService {
         r.setComision(comisionValida(item.getComision()));
         r.setEstado("pendiente");
         r.setFecha(LocalDateTime.now());
-        registroRepo.save(r);
+        r = registroRepo.save(r);
+        notificacionService.crearParaCliente(clienteGanador, "PUJA_GANADA:" + r.getIdentificador(),
+                "Ganaste la puja. Elegí si querés retirar la pieza o recibirla en tu domicilio y completá el pago.");
     }
 
     /** registroDeSubasta.comision exige > 0.01 (CHECK de la DB). */

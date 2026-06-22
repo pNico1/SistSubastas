@@ -103,6 +103,7 @@ export default function ProductoDetailScreen({ navigation, route }) {
   if (!producto) return null;
 
   const config = getEstadoConfig(producto.estado);
+  const puedeGestionarSeguro = ['aprobado', 'aceptado', 'en_subasta'].includes(producto.estado);
 
   return (
     <View style={{ flex: 1, backgroundColor: p.background }}>
@@ -166,7 +167,7 @@ export default function ProductoDetailScreen({ navigation, route }) {
           {(producto.estado === 'pendiente_terminos' || producto.estado === 'aprobado') && (
             <TouchableOpacity
               style={[styles.actionRow, { backgroundColor: p.primaryFaint, borderColor: 'rgba(8,70,237,0.2)' }]}
-              onPress={() => navigateWithReturnTo(navigation, 'AceptarTerminos', { id: producto.id })}
+              onPress={() => navigation.navigate('ProductoAceptado', { id: producto.id })}
             >
               <MaterialIcons name="fact-check" size={18} color={p.primary} />
               <Text style={[styles.actionText, { color: p.primary }]}>Revisar valor base y comisiones</Text>
@@ -219,13 +220,15 @@ export default function ProductoDetailScreen({ navigation, route }) {
             <Section title="Póliza de seguro" icon="verified-user">
               <InfoRow label="N° de póliza" value={producto.poliza.numero} />
               <InfoRow label="Cobertura" value={producto.poliza.cobertura} />
-              <TouchableOpacity
-                style={styles.upgradeLink}
-                onPress={() => navigateWithReturnTo(navigation, 'UpgradeSeguro', { id: producto.id })}
-              >
-                <Text style={styles.upgradeLinkText}>Aumentar cobertura</Text>
-                <MaterialIcons name="arrow-forward" size={14} color={p.primary} />
-              </TouchableOpacity>
+              {puedeGestionarSeguro ? (
+                <TouchableOpacity
+                  style={styles.upgradeLink}
+                  onPress={() => navigation.navigate('PolizaProducto', { id: producto.id })}
+                >
+                  <Text style={styles.upgradeLinkText}>Ver póliza y cobertura</Text>
+                  <MaterialIcons name="arrow-forward" size={14} color={p.primary} />
+                </TouchableOpacity>
+              ) : null}
             </Section>
           )}
         </View>

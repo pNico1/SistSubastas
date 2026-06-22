@@ -38,11 +38,16 @@ export default function AdquisicionDetailScreen({ navigation, route }) {
   const [adq, setAdq] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [entrega, setEntrega] = useState(null);
 
   const load = useCallback(async () => {
     setError(null);
     try {
-      setAdq(await adquisicionesApi.getById(id));
+      const compra = await adquisicionesApi.getById(id);
+      setAdq(compra);
+      if (compra.entregaDefinida) {
+        try { setEntrega(await adquisicionesApi.entrega(id)); } catch { setEntrega(null); }
+      }
     } catch (err) {
       setError(err);
     } finally {
@@ -56,7 +61,7 @@ export default function AdquisicionDetailScreen({ navigation, route }) {
   if (error) return <ErrorView error={error} onRetry={() => { setLoading(true); load(); }} />;
 
   const estado = estadoConfig(adq.estado);
-  const total = num(adq.importe) + num(adq.comision);
+  const total = num(adq.total);
   const pagable = adq.estado === 'pendiente' || adq.estado === 'en_mora';
 
   return (
@@ -78,6 +83,7 @@ export default function AdquisicionDetailScreen({ navigation, route }) {
 
         <View style={styles.card}>
           <Row label="Importe ofertado" value={`$${num(adq.importe).toLocaleString('es-AR')}`} />
+          <Row label="Costo de envío" value={`$${num(adq.costoEnvio).toLocaleString('es-AR')}`} />
           <Row label="Comisión" value={`$${num(adq.comision).toLocaleString('es-AR')}`} />
           <View style={styles.divider} />
           <Row label="Total a pagar" value={`$${total.toLocaleString('es-AR')}`} strong />
@@ -92,16 +98,22 @@ export default function AdquisicionDetailScreen({ navigation, route }) {
           </View>
         ) : null}
 
+        {entrega ? (
+          <View style={styles.card}>
+            <Row label="Modalidad" value={entrega.tipo === 'envio' ? 'Envío a domicilio' : 'Retiro personal'} />
+            <Row label="Dirección" value={entrega.direccion || 'A confirmar'} />
+            <Row label="Fecha estimada" value={entrega.fechaEstimada || 'A confirmar'} />
+          </View>
+        ) : null}
+
         {pagable ? (
           <TouchableOpacity
             style={styles.payBtn}
             activeOpacity={0.85}
-            onPress={() => navigation.navigate('PagoAdquisicion', {
-              id: adq.id, importe: num(adq.importe), comision: num(adq.comision),
-            })}
+            onPress={() => navigation.navigate(adq.entregaDefinida ? 'PagoAdquisicion' : 'EntregaCompra', { id: adq.id })}
           >
             <MaterialIcons name="payments" size={20} color="#fff" />
-            <Text style={styles.payBtnText}>Pagar ${total.toLocaleString('es-AR')}</Text>
+            <Text style={styles.payBtnText}>{adq.entregaDefinida ? `Pagar $${total.toLocaleString('es-AR')}` : 'Elegir retiro o envío'}</Text>
           </TouchableOpacity>
         ) : (
           <View style={styles.paidBox}>

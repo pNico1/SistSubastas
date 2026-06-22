@@ -57,7 +57,7 @@ Para cerrar una subasta el backend escribe `'carrada'`.
 - **`comprasEmpresa`** — piezas sin pujas que la empresa compra al precio base al
   cerrarse el ítem. No hay cliente, por eso no entra en `registroDeSubasta`.
 
-Total: 16 originales + 6 satélites + 11 nuevas = **33 tablas**.
+Total: 16 originales + 6 satélites + 14 nuevas = **36 tablas**.
 
 
 ## Registro en dos fases (staging + binding por token)
