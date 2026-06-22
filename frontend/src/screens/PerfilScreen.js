@@ -74,7 +74,6 @@ export default function PerfilScreen({ navigation }) {
   const { logout } = useAuth();
   const insets = useSafeAreaInsets();
   const [perfil, setPerfil] = useState(null);
-  const [pujas, setPujas] = useState([]);
   const [metricas, setMetricas] = useState(null);
   const [subastaActiva, setSubastaActiva] = useState(null);
   const [saliendo, setSaliendo] = useState(false);
@@ -85,15 +84,13 @@ export default function PerfilScreen({ navigation }) {
   const load = useCallback(async () => {
     setError(null);
     try {
-      const [pr, pj, asistencias, victorias, mis] = await Promise.all([
+      const [pr, asistencias, victorias, mis] = await Promise.all([
         clienteApi.perfil(),
-        clienteApi.misPujas(),
         clienteApi.asistenciasStats(),
         clienteApi.victoriasStats(),
         clienteApi.misSubastas(),
       ]);
       setPerfil(pr);
-      setPujas(pj || []);
       setMetricas({ asistencias, victorias });
 
       // Subasta abierta a la que el usuario esta unido (solo puede ser una).
@@ -291,27 +288,6 @@ export default function PerfilScreen({ navigation }) {
           <ActionRow icon="receipt-long" label="Liquidaciones de ventas" iconColor={p.success} iconBg="rgba(22,163,74,0.10)" onPress={() => navigation.navigate('Liquidaciones')} />
         </View>
 
-        {/* Mis pujas recientes */}
-        {pujas.length > 0 && (
-          <View style={{ marginTop: 24 }}>
-            <Text style={styles.sectionTitle}>Mis pujas ({pujas.length})</Text>
-            {pujas.map((item) => (
-              <View key={item.id} style={styles.pujaRow}>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.pujaTitle}>
-                    {item.producto || `Item ${item.item}`}
-                  </Text>
-                  <Text style={styles.pujaSub}>Subasta {item.subasta}</Text>
-                </View>
-                <Text style={styles.pujaImporte}>${item.importe}</Text>
-                {item.ganador === 'si' && (
-                  <MaterialIcons name="emoji-events" size={18} color={p.tertiary} style={{ marginLeft: 6 }} />
-                )}
-              </View>
-            ))}
-          </View>
-        )}
-
         {/* Security badge */}
         <View style={styles.secBadge}>
           <MaterialIcons name="verified-user" size={18} color={p.primary} />
@@ -483,27 +459,6 @@ const styles = StyleSheet.create({
   },
   actionLabel: { flex: 1, fontSize: 15, fontWeight: '700', color: p.text },
   divider: { height: 1, backgroundColor: p.border, marginLeft: 70 },
-
-  // Pujas
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: p.text,
-    marginBottom: 10,
-  },
-  pujaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: p.surface,
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 8,
-    borderWidth: 1,
-    borderColor: p.border,
-  },
-  pujaTitle: { fontWeight: '700', color: p.text, fontSize: 14 },
-  pujaSub: { color: p.muted, fontSize: 12, marginTop: 2 },
-  pujaImporte: { fontWeight: '800', color: p.primary, fontSize: 15 },
 
   // Security
   secBadge: {
