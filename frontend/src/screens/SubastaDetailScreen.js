@@ -3,7 +3,6 @@ import {
   View, Text, FlatList, TouchableOpacity, StyleSheet,
   Alert, ScrollView, Dimensions, Animated,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialIcons } from '@expo/vector-icons';
 import { subastasApi, clienteApi } from '../api/endpoints';
@@ -11,8 +10,10 @@ import { useAuth } from '../context/AuthContext';
 import Loading from '../components/Loading';
 import ErrorView from '../components/ErrorView';
 import Button from '../components/Button';
+import ScreenHeader from '../components/ScreenHeader';
 import { navigateWithReturnTo } from '../navigationUtils';
 import { POLLING_MS } from '../config';
+import { formatDate, formatTime, parseServerDateAndTime } from '../utils/datetime';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 const CARD_W = SCREEN_W * 0.82;
@@ -129,9 +130,32 @@ function InfoChip({ icon, label }) {
   );
 }
 
+function fechaInicio(fecha, hora) {
+  const inicio = parseServerDateAndTime(fecha, hora);
+  return inicio ? formatDate(inicio) : fecha || 'Fecha a confirmar';
+}
+
+function horaInicio(fecha, hora) {
+  const inicio = parseServerDateAndTime(fecha, hora);
+  return inicio ? formatTime(inicio) : hora || 'Hora a confirmar';
+}
+
+function estadoSubastaTag(estado) {
+  const normalized = String(estado || '').trim().toLowerCase();
+
+  if (normalized === 'cerrada' || normalized === 'carrada') {
+    return { label: 'Cerrada', variant: 'closed' };
+  }
+
+  if (normalized === 'abierta' || normalized === 'activa') {
+    return { label: 'Activa', variant: 'active' };
+  }
+
+  return { label: 'En espera', variant: 'waiting' };
+}
+
 export default function SubastaDetailScreen({ route, navigation }) {
   const { user } = useAuth();
-  const insets = useSafeAreaInsets();
   const { id } = route.params;
   const [subasta, setSubasta] = useState(null);
   const [items, setItems] = useState([]);
@@ -223,24 +247,45 @@ export default function SubastaDetailScreen({ route, navigation }) {
 
   if (pendingVerification) {
     return (
-      <View style={styles.blocked}>
+      <View style={styles.screen}>
+        <ScreenHeader navigation={navigation} route={route} title="Detalle de subasta" />
+        <View style={styles.blocked}>
         <Text style={styles.blockedTitle}>Cuenta en verificación</Text>
         <Text style={styles.blockedText}>
           Tu cuenta todavía está pendiente de aprobación. Vas a poder entrar a subastas cuando un administrador la verifique.
         </Text>
-        <Button title="Volver al inicio" onPress={() => navigation.navigate('Subastas')} />
+          <Button title="Volver al inicio" onPress={() => navigation.navigate('Subastas')} />
+        </View>
       </View>
     );
   }
 
-  if (loading) return <Loading text="Cargando subasta..." />;
-  if (error) return <ErrorView error={error} onRetry={() => { setLoading(true); load(); }} />;
+  if (loading) {
+    return (
+      <View style={styles.screen}>
+        <ScreenHeader navigation={navigation} route={route} title="Detalle de subasta" />
+        <Loading text="Cargando subasta..." />
+      </View>
+    );
+  }
+  if (error) {
+    return (
+      <View style={styles.screen}>
+        <ScreenHeader navigation={navigation} route={route} title="Detalle de subasta" />
+        <ErrorView error={error} onRetry={() => { setLoading(true); load(); }} />
+      </View>
+    );
+  }
+
+  const estadoTag = estadoSubastaTag(subEstado || subasta.estado);
 
   return (
-    <ScrollView style={{ backgroundColor: p.background }} contentContainerStyle={{ paddingBottom: 40 }}>
+    <View style={styles.screen}>
+      <ScreenHeader navigation={navigation} route={route} title="Detalle de subasta" />
+      <ScrollView style={{ backgroundColor: p.background }} contentContainerStyle={{ paddingBottom: 40 }}>
 
       {/* Editorial header */}
-      <View style={[styles.editorialHeader, { paddingTop: insets.top + 16 }]}>
+      <View style={styles.editorialHeader}>
         <Text style={styles.exhibitionLabel}>
           SPECIAL EXHIBITION: {(subasta.categoria || 'SUBASTA').toUpperCase()}
         </Text>
@@ -249,7 +294,15 @@ export default function SubastaDetailScreen({ route, navigation }) {
         </Text>
 
         <View style={styles.chipsRow}>
-          <InfoChip icon="calendar-today" label={`${subasta.fecha} · ${subasta.hora}`} />
+          <InfoChip
+            icon="calendar-today"
+            label={`${fechaInicio(subasta.fecha, subasta.hora)} · Inicio ${horaInicio(subasta.fecha, subasta.hora)}`}
+          />
+          <View style={[styles.statusTag, styles[`statusTag_${estadoTag.variant}`]]}>
+            <Text style={[styles.statusTagText, styles[`statusTagText_${estadoTag.variant}`]]}>
+              {estadoTag.label}
+            </Text>
+          </View>
           <InfoChip icon="person" label={`Subasta #${subasta.id}`} />
           <InfoChip icon="location-on" label={subasta.ubicacion} />
         </View>
@@ -364,11 +417,13 @@ export default function SubastaDetailScreen({ route, navigation }) {
         </View>
       </View>
 
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  screen: { flex: 1, backgroundColor: p.background },
   blocked: { flex: 1, backgroundColor: p.background, padding: 24, alignItems: 'center', justifyContent: 'center' },
   blockedTitle: { color: p.text, fontSize: 22, fontWeight: '800', marginBottom: 8, textAlign: 'center' },
   blockedText: { color: p.muted, fontSize: 15, lineHeight: 22, textAlign: 'center', marginBottom: 24 },
@@ -393,6 +448,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999,
   },
   chipText: { fontSize: 12, fontWeight: '600', color: p.muted },
+  statusTag: {
+    justifyContent: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 999,
+  },
+  statusTag_active: { backgroundColor: p.successFaint },
+  statusTag_waiting: { backgroundColor: p.primaryFaint },
+  statusTag_closed: { backgroundColor: p.surfaceLow },
+  statusTagText: { fontSize: 12, fontWeight: '800' },
+  statusTagText_active: { color: p.success },
+  statusTagText_waiting: { color: p.primary },
+  statusTagText_closed: { color: p.muted },
 
   headerActions: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',

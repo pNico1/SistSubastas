@@ -7,6 +7,7 @@ import { adquisicionesApi, clienteApi } from '../api/endpoints';
 import Loading from '../components/Loading';
 import ErrorView from '../components/ErrorView';
 import { goBackOrReturnTo } from '../navigationUtils';
+import ScreenHeader from '../components/ScreenHeader';
 
 const p = { background: '#F9F5FF', surface: '#FFF', surfaceLow: '#F2EFFF', primary: '#0846ED', primaryFaint: 'rgba(8,70,237,.10)', text: '#2B2A51', muted: '#585781', border: 'rgba(171,169,215,.35)', warning: '#B45309', warningFaint: '#FEF3C7' };
 
@@ -50,10 +51,7 @@ export default function EntregaCompraScreen({ navigation, route }) {
   if (error) return <ErrorView error={error} onRetry={() => { setLoading(true); load(); }} />;
 
   return <View style={styles.screen}>
-    <View style={[styles.header, { paddingTop: insets.top + 10 }]}>
-      <TouchableOpacity onPress={() => goBackOrReturnTo(navigation, route)} style={styles.back}><MaterialIcons name="arrow-back" size={22} color={p.text} /></TouchableOpacity>
-      <Text style={styles.headerTitle}>Cómo recibir tu compra</Text><View style={{ width: 36 }} />
-    </View>
+    <ScreenHeader navigation={navigation} route={route} title="Cómo recibir tu compra" />
     <ScrollView contentContainerStyle={styles.body}>
       <View style={styles.win}><MaterialIcons name="emoji-events" size={36} color="#C58B00" /></View>
       <Text style={styles.title}>¡Ganaste la puja!</Text>

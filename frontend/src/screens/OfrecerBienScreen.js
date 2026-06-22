@@ -12,6 +12,7 @@ import { useAuth } from '../context/AuthContext';
 import { goBackOrReturnTo } from '../navigationUtils';
 import BottomNavBar from '../components/BottomNavBar';
 import Button from '../components/Button';
+import TopAppBar from '../components/TopAppBar';
 
 const MIN_FOTOS = 6;
 const MAX_FOTOS = 8;
@@ -182,21 +183,29 @@ export default function OfrecerBienScreen({ navigation, route }) {
 
   if (pendingVerification) {
     return (
-      <View style={styles.blocked}>
+      <View style={{ flex: 1, backgroundColor: p.background }}>
+        <TopAppBar navigation={navigation} />
+        <View style={[styles.blocked, { paddingTop: insets.top + 80 }]}>
         <Text style={styles.blockedTitle}>Cuenta en verificación</Text>
         <Text style={styles.blockedText}>
           Tu cuenta todavía está pendiente de aprobación. Vas a poder enviar un bien cuando un administrador la verifique.
         </Text>
-        <Button title="Volver al inicio" onPress={() => navigation.navigate('Bidster')} variant="accent" />
+          <Button title="Volver al inicio" onPress={() => navigation.navigate('Bidster')} variant="accent" />
+        </View>
+        <BottomNavBar navigation={navigation} />
       </View>
     );
   }
 
   return (
     <View style={{ flex: 1, backgroundColor: p.background }}>
+      <TopAppBar navigation={navigation} />
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView
-          contentContainerStyle={[styles.container, { paddingBottom: insets.bottom + 80 }]}
+          contentContainerStyle={[
+            styles.container,
+            { paddingTop: insets.top + 80, paddingBottom: insets.bottom + 80 },
+          ]}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >

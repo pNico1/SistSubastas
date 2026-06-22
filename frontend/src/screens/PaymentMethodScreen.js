@@ -6,8 +6,8 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
+import ScreenHeader from '../components/ScreenHeader';
 
 const palette = {
   background: '#F9F5FF',
@@ -61,16 +61,15 @@ export default function PaymentMethodScreen({ route, navigation }) {
   }
 
   return (
-    <SafeAreaView style={styles.screen} edges={['top']}>
+    <View style={styles.screen}>
+      <ScreenHeader
+        navigation={navigation}
+        route={route}
+        title="Metodo de pago"
+        showNotifications={false}
+        onBackPress={goBack}
+      />
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
-        <View style={styles.topBar}>
-          <TouchableOpacity onPress={goBack} style={styles.backButton} hitSlop={10}>
-            <Text style={styles.backArrow}>{'<'}</Text>
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Payment Method</Text>
-          <View style={{ width: 42 }} />
-        </View>
-
         <Text style={styles.title}>Metodo de Pago</Text>
         <Text style={styles.subtitle}>
           Para participar en las subastas, debes registrar al menos un medio de pago verificado.
@@ -100,7 +99,7 @@ export default function PaymentMethodScreen({ route, navigation }) {
           <Text style={styles.buttonText}>Volver</Text>
         </TouchableOpacity>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 

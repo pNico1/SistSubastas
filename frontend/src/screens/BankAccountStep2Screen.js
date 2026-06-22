@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { clienteApi } from '../api/endpoints';
 import { useAuth } from '../context/AuthContext';
 import TextField from '../components/TextField';
 import Button from '../components/Button';
+import ScreenHeader from '../components/ScreenHeader';
 import { colors, spacing } from '../theme';
 
 export default function BankAccountStep2Screen({ route, navigation }) {
@@ -68,9 +68,15 @@ export default function BankAccountStep2Screen({ route, navigation }) {
   }
 
   return (
-    <SafeAreaView style={styles.screen} edges={['top']}>
+    <View style={styles.screen}>
+      <ScreenHeader
+        navigation={navigation}
+        route={route}
+        title="Cuenta bancaria"
+        showNotifications={false}
+        onBackPress={() => navigation.goBack()}
+      />
       <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-        <BackButton onPress={() => navigation.goBack()} />
         <Text style={styles.title}>CUENTA BANCARIA</Text>
         <Text style={styles.section}>Datos</Text>
 
@@ -82,7 +88,7 @@ export default function BankAccountStep2Screen({ route, navigation }) {
           <Button title="Finalizar" onPress={save} loading={saving} />
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 

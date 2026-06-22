@@ -10,6 +10,7 @@ import { productosApi } from '../api/endpoints';
 import Loading from '../components/Loading';
 import ErrorView from '../components/ErrorView';
 import { goBackOrReturnTo } from '../navigationUtils';
+import ScreenHeader from '../components/ScreenHeader';
 
 const p = {
   background:   '#F9F5FF',
@@ -91,17 +92,7 @@ export default function AceptarTerminosScreen({ navigation, route }) {
 
   return (
     <View style={{ flex: 1, backgroundColor: p.background }}>
-      <View style={[styles.header, { paddingTop: insets.top + 10 }]}>
-        <TouchableOpacity
-          onPress={() => goBackOrReturnTo(navigation, route)}
-          style={styles.backBtn}
-          hitSlop={10}
-        >
-          <MaterialIcons name="arrow-back" size={22} color={p.text} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Condiciones de subasta</Text>
-        <View style={{ width: 36 }} />
-      </View>
+      <ScreenHeader navigation={navigation} route={route} title="Condiciones de subasta" />
 
       <ScrollView contentContainerStyle={styles.body}>
         <Text style={styles.pieza} numberOfLines={2}>

@@ -19,12 +19,16 @@ import SearchBar from '../components/SearchBar';
 import FilterChips from '../components/FilterChips';
 import BidCard from '../components/BidCard';
 import { subastasApi } from '../api/endpoints';
+import { formatDate, formatTime, parseServerDateAndTime } from '../utils/datetime';
 
-function shortFecha(fecha, hora) {
-  if (!fecha) return hora || 'pronto';
-  const parts = String(fecha).split('-'); // [YYYY, MM, DD]
-  if (parts.length === 3) return `${parts[2]}/${parts[1]}`;
-  return String(fecha);
+function fechaInicio(fecha, hora) {
+  const inicio = parseServerDateAndTime(fecha, hora);
+  return inicio ? formatDate(inicio) : fecha || 'Fecha a confirmar';
+}
+
+function horaInicio(fecha, hora) {
+  const inicio = parseServerDateAndTime(fecha, hora);
+  return inicio ? formatTime(inicio) : hora || 'Hora a confirmar';
 }
 
 export default function PujasScreen({ navigation }) {
@@ -85,7 +89,8 @@ export default function PujasScreen({ navigation }) {
         title: `Subasta #${s.id}`,
         category: s.categoria || 'General',
         lots: s.cantidadItems ?? 0,
-        timeLeft: shortFecha(s.fecha, s.hora),
+        dateLabel: fechaInicio(s.fecha, s.hora),
+        startTime: horaInicio(s.fecha, s.hora),
         image: `https://picsum.photos/seed/subasta${s.id}/600/400`,
         live: s.estado === 'abierta',
       }));

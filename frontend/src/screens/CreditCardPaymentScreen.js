@@ -1,10 +1,10 @@
 import React, { useMemo, useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { clienteApi } from '../api/endpoints';
 import { useAuth } from '../context/AuthContext';
 import TextField from '../components/TextField';
 import Button from '../components/Button';
+import ScreenHeader from '../components/ScreenHeader';
 import { colors, radius, spacing } from '../theme';
 
 export default function CreditCardPaymentScreen({ route, navigation }) {
@@ -73,9 +73,15 @@ export default function CreditCardPaymentScreen({ route, navigation }) {
   }
 
   return (
-    <SafeAreaView style={styles.screen} edges={['top']}>
+    <View style={styles.screen}>
+      <ScreenHeader
+        navigation={navigation}
+        route={route}
+        title="Tarjeta de credito"
+        showNotifications={false}
+        onBackPress={() => navigation.goBack()}
+      />
       <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-        <BackButton onPress={() => navigation.goBack()} />
         <Text style={styles.title}>PAGO CON TARJETA</Text>
 
         <TextField label="Titular" value={form.titular} onChangeText={(v) => setField('titular', v)} error={errors.titular} />
@@ -92,7 +98,7 @@ export default function CreditCardPaymentScreen({ route, navigation }) {
           <Button title="Finalizar" onPress={save} loading={saving} />
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 

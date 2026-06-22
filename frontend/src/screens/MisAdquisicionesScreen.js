@@ -9,6 +9,7 @@ import { adquisicionesApi } from '../api/endpoints';
 import Loading from '../components/Loading';
 import ErrorView from '../components/ErrorView';
 import { goBackOrReturnTo } from '../navigationUtils';
+import ScreenHeader from '../components/ScreenHeader';
 
 const palette = {
   background: '#F9F5FF', surface: '#FFFFFF', surfaceLow: '#F2EFFF',
@@ -82,13 +83,7 @@ export default function MisAdquisicionesScreen({ navigation, route }) {
 
   return (
     <View style={styles.screen}>
-      <View style={[styles.header, { paddingTop: insets.top + 10 }]}>
-        <TouchableOpacity onPress={() => goBackOrReturnTo(navigation, route)} style={styles.backButton} hitSlop={10}>
-          <MaterialIcons name="arrow-back" size={22} color={palette.text} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Mis compras</Text>
-        <View style={styles.headerSpacer} />
-      </View>
+      <ScreenHeader navigation={navigation} route={route} title="Mis compras" />
 
       <FlatList
         data={items}

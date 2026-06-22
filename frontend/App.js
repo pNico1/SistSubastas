@@ -4,7 +4,6 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
-import { MaterialIcons } from '@expo/vector-icons';
 
 import { AuthProvider, useAuth } from './src/context/AuthContext';
 import SplashScreen from './src/screens/SplashScreen';
@@ -47,14 +46,16 @@ import MultaDetailScreen from './src/screens/MultaDetailScreen';
 // ---- fin Área 1 ----
 // ---- Área 3: perfil y métricas ----
 import EditarPerfilScreen from './src/screens/EditarPerfilScreen';
-import MetricasScreen from './src/screens/MetricasScreen';
+import MetricasAsistenciasScreen from './src/screens/MetricasAsistenciasScreen';
+import MetricasVictoriasScreen from './src/screens/MetricasVictoriasScreen';
+import MetricasTotalPagadoScreen from './src/screens/MetricasTotalPagadoScreen';
 import HistorialSubastasScreen from './src/screens/HistorialSubastasScreen';
 // ---- fin Área 3 ----
 import { colors } from './src/theme';
 import BidsterScreen from './src/screens/BidsterScreen';
 import PujasScreen from './src/screens/PujasScreen';
 import { navigationRef } from './src/navigationRef';
-import { goBackOrReturnTo, navigateWithReturnTo } from './src/navigationUtils';
+import { navigateWithReturnTo } from './src/navigationUtils';
 
 const Stack = createNativeStackNavigator();
 
@@ -63,29 +64,6 @@ const navHeader = {
   headerTintColor: '#fff',
   headerTitleStyle: { fontWeight: '700' },
 };
-
-function LogoutButton() {
-  const { logout } = useAuth();
-  return (
-    <TouchableOpacity onPress={logout}>
-      <Text style={{ color: '#fff', fontWeight: '600' }}>Salir</Text>
-    </TouchableOpacity>
-  );
-}
-
-function HeaderBackButton({ navigation, route }) {
-  return (
-    <TouchableOpacity
-      onPress={() => goBackOrReturnTo(navigation, route)}
-      hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-      accessibilityRole="button"
-      accessibilityLabel="Volver"
-      style={{ width: 40, height: 40, alignItems: 'center', justifyContent: 'center' }}
-    >
-      <MaterialIcons name="arrow-back" size={24} color="#fff" />
-    </TouchableOpacity>
-  );
-}
 
 function HeaderRightActions({ navigation }) {
   const { user, logout } = useAuth();
@@ -166,26 +144,17 @@ function RootNavigator() {
             <Stack.Screen
               name="SubastaDetail"
               component={SubastaDetailScreen}
-              options={({ navigation, route }) => ({
-                title: 'Detalle de subasta',
-                headerLeft: () => <HeaderBackButton navigation={navigation} route={route} />,
-              })}
+              options={{ headerShown: false }}
             />
             <Stack.Screen
               name="ItemDetail"
               component={ItemDetailScreen}
-              options={({ navigation, route }) => ({
-                title: 'Pujar',
-                headerLeft: () => <HeaderBackButton navigation={navigation} route={route} />,
-              })}
+              options={{ headerShown: false }}
             />
             <Stack.Screen
               name="Perfil"
               component={PerfilScreen}
-              options={({ navigation, route }) => ({
-                title: 'Mi cuenta',
-                headerLeft: () => <HeaderBackButton navigation={navigation} route={route} />,
-              })}
+              options={{ headerShown: false }}
             />
 
             {/* Notificaciones */}
@@ -197,7 +166,9 @@ function RootNavigator() {
 
             {/* Área 3: perfil, historial y métricas */}
             <Stack.Screen name="EditarPerfil" component={EditarPerfilScreen} options={{ headerShown: false }} />
-            <Stack.Screen name="Metricas" component={MetricasScreen} options={{ headerShown: false }} />
+            <Stack.Screen name="MetricasAsistencias" component={MetricasAsistenciasScreen} options={{ headerShown: false }} />
+            <Stack.Screen name="MetricasVictorias" component={MetricasVictoriasScreen} options={{ headerShown: false }} />
+            <Stack.Screen name="MetricasTotalPagado" component={MetricasTotalPagadoScreen} options={{ headerShown: false }} />
             <Stack.Screen name="HistorialSubastas" component={HistorialSubastasScreen} options={{ headerShown: false }} />
 
             {/* Área 2: dueño / producto / revisión / seguros */}
@@ -228,10 +199,7 @@ function RootNavigator() {
             <Stack.Screen
               name="OfrecerBien"
               component={OfrecerBienScreen}
-              options={({ navigation, route }) => ({
-                title: 'Ofrecer un bien',
-                headerLeft: () => <HeaderBackButton navigation={navigation} route={route} />,
-              })}
+              options={{ headerShown: false }}
             />
           </>
         )}

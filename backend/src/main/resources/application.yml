@@ -11,9 +11,9 @@ spring:
     name: subastas-api
 
   datasource:
-    url: jdbc:mysql://localhost:3306/subastas?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=America/Argentina/Buenos_Aires
-    username: root
-    password: 1234r
+    url: jdbc:mysql://192.168.37:3306/subastas?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=America/Argentina/Buenos_Aires
+    username: subastas_app
+    password: 1234
     driver-class-name: com.mysql.cj.jdbc.Driver
 
   jpa:

@@ -11,6 +11,7 @@ import { POLLING_MS } from '../config';
 import { useAuth } from '../context/AuthContext';
 import Loading from '../components/Loading';
 import ErrorView from '../components/ErrorView';
+import ScreenHeader from '../components/ScreenHeader';
 
 const p = {
   background:   '#F9F5FF',
@@ -31,7 +32,7 @@ const p = {
   white:        '#FFFFFF',
 };
 
-export default function ItemDetailScreen({ route }) {
+export default function ItemDetailScreen({ route, navigation }) {
   const { user } = useAuth();
   const insets = useSafeAreaInsets();
   const { subastaId, itemId, nombre } = route.params;
@@ -154,17 +155,34 @@ export default function ItemDetailScreen({ route }) {
 
   if (pendingVerification) {
     return (
-      <View style={styles.blocked}>
+      <View style={styles.screen}>
+        <ScreenHeader navigation={navigation} route={route} title="Pujar" />
+        <View style={styles.blocked}>
         <Text style={styles.blockedTitle}>Cuenta en verificación</Text>
         <Text style={styles.blockedText}>
           Tu cuenta todavía está pendiente de aprobación. No podés pujar hasta que sea verificada.
         </Text>
+        </View>
       </View>
     );
   }
 
-  if (loading) return <Loading text="Cargando lote..." />;
-  if (error && !oferta) return <ErrorView error={error} onRetry={() => { setLoading(true); fetchOferta(); }} />;
+  if (loading) {
+    return (
+      <View style={styles.screen}>
+        <ScreenHeader navigation={navigation} route={route} title="Pujar" />
+        <Loading text="Cargando lote..." />
+      </View>
+    );
+  }
+  if (error && !oferta) {
+    return (
+      <View style={styles.screen}>
+        <ScreenHeader navigation={navigation} route={route} title="Pujar" />
+        <ErrorView error={error} onRetry={() => { setLoading(true); fetchOferta(); }} />
+      </View>
+    );
+  }
 
   const tieneOferta = oferta.ofertaActual != null;
   const esActivo = itemActivoId != null && Number(itemActivoId) === Number(itemId);
@@ -174,10 +192,12 @@ export default function ItemDetailScreen({ route }) {
     : p.success;
 
   return (
-    <ScrollView
+    <View style={styles.screen}>
+      <ScreenHeader navigation={navigation} route={route} title="Pujar" />
+      <ScrollView
       style={{ backgroundColor: p.background }}
       contentContainerStyle={[styles.container, { paddingBottom: insets.bottom + 32 }]}
-    >
+      >
       {/* Header editorial */}
       <View style={styles.editorialHeader}>
         <View style={styles.lotBadge}>
@@ -322,11 +342,13 @@ export default function ItemDetailScreen({ route }) {
           </TouchableOpacity>
         </View>
       )}
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  screen: { flex: 1, backgroundColor: p.background },
   blocked: { flex: 1, backgroundColor: p.background, padding: 24, alignItems: 'center', justifyContent: 'center' },
   blockedTitle: { color: p.text, fontSize: 22, fontWeight: '800', marginBottom: 8, textAlign: 'center' },
   blockedText: { color: p.muted, fontSize: 15, lineHeight: 22, textAlign: 'center' },

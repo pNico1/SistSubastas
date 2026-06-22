@@ -2,13 +2,13 @@ import React, { useCallback, useState } from 'react';
 import {
   Alert, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { clienteApi } from '../api/endpoints';
 import Loading from '../components/Loading';
 import ErrorView from '../components/ErrorView';
 import { goBackOrReturnTo } from '../navigationUtils';
+import ScreenHeader from '../components/ScreenHeader';
 
 const palette = {
   background: '#F9F5FF',
@@ -69,20 +69,8 @@ export default function PaymentMethodsScreen({ navigation, route }) {
   if (error) return <ErrorView error={error} onRetry={() => { setLoading(true); load(); }} />;
 
   return (
-    <SafeAreaView style={styles.screen} edges={['top']}>
-      <View style={styles.header}>
-        <TouchableOpacity
-          onPress={() => goBackOrReturnTo(navigation, route)}
-          style={styles.backButton}
-          hitSlop={10}
-          accessibilityRole="button"
-          accessibilityLabel="Volver"
-        >
-          <MaterialIcons name="arrow-back" size={22} color={palette.text} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Métodos de pago</Text>
-        <View style={{ width: 36 }} />
-      </View>
+    <View style={styles.screen}>
+      <ScreenHeader navigation={navigation} route={route} title="Métodos de pago" />
 
       <ScrollView
         contentContainerStyle={styles.container}
@@ -142,7 +130,7 @@ export default function PaymentMethodsScreen({ navigation, route }) {
           </TouchableOpacity>
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import TextField from '../components/TextField';
+import ScreenHeader from '../components/ScreenHeader';
 import { colors, radius, spacing } from '../theme';
 
 export default function BankAccountStep1Screen({ route, navigation }) {
@@ -36,9 +36,15 @@ export default function BankAccountStep1Screen({ route, navigation }) {
   }
 
   return (
-    <SafeAreaView style={styles.screen} edges={['top']}>
+    <View style={styles.screen}>
+      <ScreenHeader
+        navigation={navigation}
+        route={route}
+        title="Cuenta bancaria"
+        showNotifications={false}
+        onBackPress={() => navigation.goBack()}
+      />
       <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-        <BackButton onPress={() => navigation.goBack()} />
         <Text style={styles.title}>CUENTA BANCARIA</Text>
         <Text style={styles.section}>Datos</Text>
 
@@ -65,7 +71,7 @@ export default function BankAccountStep1Screen({ route, navigation }) {
           </TouchableOpacity>
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
