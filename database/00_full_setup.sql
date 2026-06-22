@@ -782,8 +782,8 @@ INSERT INTO fotosDatos (foto, url, orden) VALUES
 
 -- subastas -------------------------------------------------------------------
 INSERT INTO subastas (identificador, fecha, hora, estado, subastador, ubicacion, capacidadAsistentes, tieneDeposito, seguridadPropia, categoria) VALUES
- (50, DATE_ADD(CURDATE(), INTERVAL 15 DAY), '18:00:00', 'abierta', 3, 'Av. Siempre Viva 123', 100, 'si', 'si', 'plata'),
- (51, DATE_ADD(CURDATE(), INTERVAL 20 DAY), '19:00:00', 'abierta', 3, 'Salon Central 50',      80, 'si', 'no', 'oro'),
+ (50, DATE_ADD(CURDATE(), INTERVAL 15 DAY), '18:00:00', NULL,      3, 'Av. Siempre Viva 123', 100, 'si', 'si', 'plata'),
+ (51, DATE_ADD(CURDATE(), INTERVAL 20 DAY), '19:00:00', NULL,      3, 'Salon Central 50',      80, 'si', 'no', 'oro'),
  (52, DATE_ADD(CURDATE(), INTERVAL 30 DAY), '17:00:00', NULL,      3, 'Hall Norte 10',         60, 'no', 'si', 'comun');
 
 INSERT INTO subastasDatos (subasta, moneda) VALUES
@@ -820,31 +820,9 @@ INSERT INTO cuentasCobroDuenio (duenio, titular, banco, identificadorBancario, m
  (8, 'Elena Vega',    'Intesa Sanpaolo','IT60X0542811101000000123456', 'USD', 'Italia', 'si', 'activa'),
  (9, 'Santiago Rossi','Banco do Brasil','BR1500000000000010932840814', 'ARS', 'Brasil', 'si', 'activa');
 
--- asistentes y pujas ---------------------------------------------------------
-INSERT INTO asistentes (identificador, numeroPostor, cliente, subasta) VALUES
- (1, 1, 5, 50),
- (2, 2, 4, 50),
- (3, 1, 4, 51),
- (4, 2, 7, 51);
-
-INSERT INTO pujos (identificador, asistente, item, importe, ganador) VALUES
- (1, 1, 1, 1250000.00, 'no'),
- (2, 2, 1, 1400000.00, 'no'),
- (3, 1, 2,  270000.00, 'no'),
- (4, 3, 4,    2100.00, 'no'),
- (5, 4, 5,    3500.00, 'no');
-
-INSERT INTO pujosDatos (pujo, fechaHora) VALUES
- (1, DATE_SUB(NOW(), INTERVAL 2 DAY)),
- (2, DATE_SUB(NOW(), INTERVAL 1 DAY)),
- (3, DATE_SUB(NOW(), INTERVAL 1 DAY)),
- (4, DATE_SUB(NOW(), INTERVAL 12 HOUR)),
- (5, DATE_SUB(NOW(), INTERVAL 6 HOUR));
-
 -- notificaciones -------------------------------------------------------------
 INSERT INTO notificaciones (cliente, tipo, mensaje, leido) VALUES
  (4, 'BIENVENIDA', 'Bienvenido a Bidster. Ya podes participar en subastas activas.', 'no'),
- (5, 'PUJA_REGISTRADA', 'Tu ultima puja quedo registrada correctamente.', 'si'),
  (6, 'ENVIO_INSPECCION:100', 'Recibimos el reloj para inspeccion y catalogacion.', 'no'),
  (8, 'PRODUCTO_ACEPTADO:104', 'La camara Leica fue aceptada para subasta.', 'no'),
  (9, 'CUENTA_COBRO_REQUERIDA:107', 'Recorda mantener activa tu cuenta de cobro para liquidaciones.', 'no');

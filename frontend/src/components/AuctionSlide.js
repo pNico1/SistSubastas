@@ -53,6 +53,17 @@ function BidButton({ onPress, label }) {
   );
 }
 
+function StatusBadge({ tipo }) {
+  if (tipo === 'futura') {
+    return (
+      <View style={styles.futureBadge}>
+        <Text style={styles.futureBadgeText}>Proxima subasta</Text>
+      </View>
+    );
+  }
+  return <LiveBadge />;
+}
+
 export default function AuctionSlide({ item, navigation }) {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
@@ -88,7 +99,7 @@ export default function AuctionSlide({ item, navigation }) {
         <View style={[styles.contentOverlay, { paddingBottom: insets.bottom + 120 }]}>
           {/* Info del item */}
           <View style={styles.infoBlock}>
-            <LiveBadge />
+            <StatusBadge tipo={item.tipo} />
             <Text style={styles.title}>{item.title}</Text>
             <Text style={styles.subtitle}>{item.subtitle}</Text>
           </View>
@@ -167,6 +178,22 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'space-between', gap: 14,
   },
   imageFallback: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center' },
+  futureBadge: {
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(255,255,255,0.16)',
+    borderColor: 'rgba(255,255,255,0.24)',
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  futureBadgeText: {
+    color: palette.white,
+    fontSize: 11,
+    fontWeight: '900',
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+  },
   guestText: { flex: 1, color: palette.mutedMid, fontSize: 13, lineHeight: 18, fontWeight: '600' },
   bidLabel: {
     fontSize: 10,
