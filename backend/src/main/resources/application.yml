@@ -61,6 +61,9 @@ app:
     from-email: ${MAIL_FROM:mailtrap@demomailtrap.co}
     from-name: ${MAIL_FROM_NAME:Bidster}
     test-to-email: ${MAIL_TEST_TO:}
+    gmail-client-id: ${GMAIL_CLIENT_ID:}
+    gmail-client-secret: ${GMAIL_CLIENT_SECRET:}
+    gmail-refresh-token: ${GMAIL_REFRESH_TOKEN:}
 
 logging:
   level:

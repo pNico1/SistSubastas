@@ -4,9 +4,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 
+import java.nio.charset.StandardCharsets;
+import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 
@@ -34,9 +38,18 @@ public class EmailService {
     private String fromName;
     @Value("${app.email.test-to-email:}")
     private String testToEmail;
+    @Value("${app.email.gmail-client-id:}")
+    private String gmailClientId;
+    @Value("${app.email.gmail-client-secret:}")
+    private String gmailClientSecret;
+    @Value("${app.email.gmail-refresh-token:}")
+    private String gmailRefreshToken;
 
     /** true si no hay proveedor/API key: el codigo se loguea/devuelve en vez de mandarse por mail. */
     public boolean isDevMode() {
+        if (isGmail()) {
+            return !hasGmailCredentials();
+        }
         return !hasApiKey() || (!isResend() && !isMailtrap());
     }
 
@@ -66,6 +79,8 @@ public class EmailService {
                 enviarConMailtrap(toEmail, nombre, "Tu codigo de verificacion - Bidster", html, "email_verification");
             } else if (isResend()) {
                 enviarConResend(toEmail, "Tu codigo de verificacion - Bidster", html);
+            } else if (isGmail()) {
+                enviarConGmail(toEmail, "Tu codigo de verificacion - Bidster", html);
             }
         } catch (Exception e) {
             // No rompemos el registro por un fallo de email: el codigo ya quedo guardado
@@ -100,6 +115,8 @@ public class EmailService {
                 enviarConMailtrap(toEmail, null, "Restablece tu contrasenia - Bidster", html, "password_reset");
             } else if (isResend()) {
                 enviarConResend(toEmail, "Restablece tu contrasenia - Bidster", html);
+            } else if (isGmail()) {
+                enviarConGmail(toEmail, "Restablece tu contrasenia - Bidster", html);
             }
         } catch (Exception e) {
             log.error("No se pudo enviar el email de reset a {}: {}", toEmail, e.getMessage());
@@ -131,6 +148,8 @@ public class EmailService {
                 enviarConMailtrap(toEmail, nombre, "Tu cuenta fue verificada - Bidster", html, "account_verified");
             } else if (isResend()) {
                 enviarConResend(toEmail, "Tu cuenta fue verificada - Bidster", html);
+            } else if (isGmail()) {
+                enviarConGmail(toEmail, "Tu cuenta fue verificada - Bidster", html);
             }
         } catch (Exception e) {
             log.error("No se pudo enviar el email de cuenta verificada a {}: {}", toEmail, e.getMessage());
@@ -153,6 +172,19 @@ public class EmailService {
         log.info("Email transaccional '{}' enviado a {} via {}", subject, recipient, provider);
     }
 
+    private void enviarConGmail(String toEmail, String subject, String html) {
+        String recipient = recipient(toEmail);
+        String accessToken = obtenerAccessTokenGmail();
+        http.post()
+                .uri(endpoint("https://gmail.googleapis.com/gmail/v1/users/me/messages/send"))
+                .header("Authorization", "Bearer " + accessToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(Map.of("raw", gmailRawMessage(recipient, subject, html)))
+                .retrieve()
+                .toBodilessEntity();
+        log.info("Email transaccional '{}' enviado a {} via Gmail API", subject, recipient);
+    }
+
     private void enviarConMailtrap(String toEmail, String nombre, String subject, String html, String category) {
         String recipient = recipient(toEmail);
         http.post()
@@ -170,8 +202,52 @@ public class EmailService {
         log.info("Email transaccional '{}' enviado a {} via {}", subject, recipient, provider);
     }
 
+    @SuppressWarnings("unchecked")
+    private String obtenerAccessTokenGmail() {
+        MultiValueMap<String, String> form = new LinkedMultiValueMap<>();
+        form.add("client_id", gmailClientId);
+        form.add("client_secret", gmailClientSecret);
+        form.add("refresh_token", gmailRefreshToken);
+        form.add("grant_type", "refresh_token");
+
+        Map<String, Object> response = http.post()
+                .uri("https://oauth2.googleapis.com/token")
+                .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                .body(form)
+                .retrieve()
+                .body(Map.class);
+
+        Object accessToken = response == null ? null : response.get("access_token");
+        if (accessToken == null || accessToken.toString().isBlank()) {
+            throw new IllegalStateException("Google no devolvio access_token para Gmail");
+        }
+        return accessToken.toString();
+    }
+
+    private String gmailRawMessage(String toEmail, String subject, String html) {
+        String bodyBase64 = Base64.getMimeEncoder(76, "\r\n".getBytes(StandardCharsets.US_ASCII))
+                .encodeToString(html.getBytes(StandardCharsets.UTF_8));
+        String mime = "From: " + sender() + "\r\n"
+                + "To: " + toEmail + "\r\n"
+                + "Subject: " + subject + "\r\n"
+                + "MIME-Version: 1.0\r\n"
+                + "Content-Type: text/html; charset=UTF-8\r\n"
+                + "Content-Transfer-Encoding: base64\r\n"
+                + "\r\n"
+                + bodyBase64;
+        return Base64.getUrlEncoder().withoutPadding()
+                .encodeToString(mime.getBytes(StandardCharsets.UTF_8));
+    }
+
     private boolean hasApiKey() {
         return apiKey != null && !apiKey.isBlank();
+    }
+
+    private boolean hasGmailCredentials() {
+        return gmailClientId != null && !gmailClientId.isBlank()
+                && gmailClientSecret != null && !gmailClientSecret.isBlank()
+                && gmailRefreshToken != null && !gmailRefreshToken.isBlank()
+                && fromEmail != null && !fromEmail.isBlank();
     }
 
     private boolean isResend() {
@@ -180,6 +256,10 @@ public class EmailService {
 
     private boolean isMailtrap() {
         return "mailtrap".equalsIgnoreCase(provider);
+    }
+
+    private boolean isGmail() {
+        return "gmail".equalsIgnoreCase(provider);
     }
 
     private String endpoint(String defaultUrl) {
