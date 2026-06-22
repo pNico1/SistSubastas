@@ -57,6 +57,7 @@ public class ProductoDuenioService {
     private final ProductoConsultaService consultaService;
     private final NotificacionService notificacionService;
     private final SeguroService seguroService;
+    private final CuentaCobroService cuentaCobroService;
 
     @Value("${app.inspeccion.direccion:Av. del Puerto 1450, Depósito 3, CABA}")
     private String direccionInspeccion;
@@ -65,7 +66,8 @@ public class ProductoDuenioService {
                                  DuenioRepository duenioRepo, ClienteRepository clienteRepo,
                                  EmpleadoRepository empleadoRepo, RevisionRepository revisionRepo,
                                  DevolucionRepository devolucionRepo, ProductoConsultaService consultaService,
-                                 NotificacionService notificacionService, SeguroService seguroService) {
+                                 NotificacionService notificacionService, SeguroService seguroService,
+                                 CuentaCobroService cuentaCobroService) {
         this.productoRepo = productoRepo;
         this.fotoRepo = fotoRepo;
         this.duenioRepo = duenioRepo;
@@ -76,6 +78,7 @@ public class ProductoDuenioService {
         this.consultaService = consultaService;
         this.notificacionService = notificacionService;
         this.seguroService = seguroService;
+        this.cuentaCobroService = cuentaCobroService;
     }
 
     public List<ProductoDto> misProductos() {
@@ -119,6 +122,7 @@ public class ProductoDuenioService {
                     "Los terminos solo pueden responderse para un producto aprobado");
         }
         boolean aceptados = Boolean.TRUE.equals(request.aceptados());
+        if (aceptados) cuentaCobroService.requireActiva(producto.getDuenio());
         producto.setTerminosAceptados(aceptados ? "si" : "no");
         producto.setEstado(aceptados ? "aceptado" : "devuelto");
         producto.setDisponible(aceptados ? "si" : "no");

@@ -26,12 +26,13 @@ public class AdquisicionService {
     private final EntregaRepository entregaRepo;
     private final SubastaRepository subastaRepo;
     private final NotificacionService notificacionService;
+    private final LiquidacionVentaService liquidacionService;
 
     public AdquisicionService(RegistroDeSubastaRepository rdsRepo, ProductoRepository productoRepo,
                               FacturaRepository facturaRepo, MedioPagoRepository medioPagoRepo,
                               PagoRepository pagoRepo, PersonaRepository personaRepo,
                               EntregaRepository entregaRepo, SubastaRepository subastaRepo,
-                              NotificacionService notificacionService) {
+                              NotificacionService notificacionService, LiquidacionVentaService liquidacionService) {
         this.rdsRepo = rdsRepo;
         this.productoRepo = productoRepo;
         this.facturaRepo = facturaRepo;
@@ -41,6 +42,7 @@ public class AdquisicionService {
         this.entregaRepo = entregaRepo;
         this.subastaRepo = subastaRepo;
         this.notificacionService = notificacionService;
+        this.liquidacionService = liquidacionService;
     }
 
     public List<AdquisicionDto> listar(String estado) {
@@ -121,6 +123,7 @@ public class AdquisicionService {
 
         r.setEstado("pagado");
         rdsRepo.save(r);
+        liquidacionService.confirmarPorAdquisicion(id);
 
         notificacionService.crearParaCliente(p.clienteId(), "PAGO_CONFIRMADO:" + id,
                 "Recibimos el pago de tu compra. Ya podés consultar el retiro o seguimiento de la entrega.");

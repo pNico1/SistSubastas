@@ -4,6 +4,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
+import { MaterialIcons } from '@expo/vector-icons';
 
 import { AuthProvider, useAuth } from './src/context/AuthContext';
 import SplashScreen from './src/screens/SplashScreen';
@@ -37,6 +38,8 @@ import PolizaProductoScreen from './src/screens/PolizaProductoScreen';
 import DireccionInspeccionScreen from './src/screens/DireccionInspeccionScreen';
 import ProductoAceptadoScreen from './src/screens/ProductoAceptadoScreen';
 import ObjetoVendidoScreen from './src/screens/ObjetoVendidoScreen';
+import CuentaCobroScreen from './src/screens/CuentaCobroScreen';
+import LiquidacionesScreen from './src/screens/LiquidacionesScreen';
 // ---- Área 1: compras y pagos ----
 import MisAdquisicionesScreen from './src/screens/MisAdquisicionesScreen';
 import AdquisicionDetailScreen from './src/screens/AdquisicionDetailScreen';
@@ -55,7 +58,7 @@ import { colors } from './src/theme';
 import BidsterScreen from './src/screens/BidsterScreen';
 import PujasScreen from './src/screens/PujasScreen';
 import { navigationRef } from './src/navigationRef';
-import { navigateWithReturnTo } from './src/navigationUtils';
+import { goBackOrReturnTo, navigateWithReturnTo } from './src/navigationUtils';
 
 const Stack = createNativeStackNavigator();
 
@@ -64,6 +67,29 @@ const navHeader = {
   headerTintColor: '#fff',
   headerTitleStyle: { fontWeight: '700' },
 };
+
+function LogoutButton() {
+  const { logout } = useAuth();
+  return (
+    <TouchableOpacity onPress={logout}>
+      <Text style={{ color: '#fff', fontWeight: '600' }}>Salir</Text>
+    </TouchableOpacity>
+  );
+}
+
+function HeaderBackButton({ navigation, route }) {
+  return (
+    <TouchableOpacity
+      onPress={() => goBackOrReturnTo(navigation, route)}
+      hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+      accessibilityRole="button"
+      accessibilityLabel="Volver"
+      style={{ width: 40, height: 40, alignItems: 'center', justifyContent: 'center' }}
+    >
+      <MaterialIcons name="arrow-back" size={24} color="#fff" />
+    </TouchableOpacity>
+  );
+}
 
 function HeaderRightActions({ navigation }) {
   const { user, logout } = useAuth();
@@ -96,6 +122,8 @@ function RootNavigator() {
           <>
             <Stack.Screen name="Bidster" component={BidsterScreen} options={{ headerShown: false }} />
             <Stack.Screen name="Pujas" component={PujasScreen} options={{ headerShown: false }} />
+            <Stack.Screen name="SubastaDetail" component={SubastaDetailScreen} options={{ headerShown: false }} />
+            <Stack.Screen name="ItemDetail" component={ItemDetailScreen} options={{ headerShown: false }} />
             <Stack.Screen name="Login" component={LoginScreen} options={{ headerShown: false }} />
             <Stack.Screen name="Register" component={RegisterScreen} options={{ headerShown: false }} />
             <Stack.Screen name="VerifyEmail" component={VerifyEmailScreen} options={{ headerShown: false }} />
@@ -182,6 +210,8 @@ function RootNavigator() {
             <Stack.Screen name="DireccionInspeccion" component={DireccionInspeccionScreen} options={{ headerShown: false }} />
             <Stack.Screen name="ProductoAceptado" component={ProductoAceptadoScreen} options={{ headerShown: false }} />
             <Stack.Screen name="ObjetoVendido" component={ObjetoVendidoScreen} options={{ headerShown: false }} />
+            <Stack.Screen name="CuentaCobro" component={CuentaCobroScreen} options={{ headerShown: false }} />
+            <Stack.Screen name="Liquidaciones" component={LiquidacionesScreen} options={{ headerShown: false }} />
 
             {/* Área 1: compras y pagos */}
             <Stack.Screen name="MisAdquisiciones" component={MisAdquisicionesScreen} options={{ headerShown: false }} />

@@ -6,17 +6,6 @@ import Loading from '../components/Loading';
 import ErrorView from '../components/ErrorView';
 import { colors, radius, spacing } from '../theme';
 import { navigateWithReturnTo } from '../navigationUtils'; // FIX: import agregado
-import { formatDate, formatTime, parseServerDateAndTime } from '../utils/datetime';
-
-function fechaInicio(fecha, hora) {
-  const inicio = parseServerDateAndTime(fecha, hora);
-  return inicio ? formatDate(inicio) : fecha || 'Fecha a confirmar';
-}
-
-function horaInicio(fecha, hora) {
-  const inicio = parseServerDateAndTime(fecha, hora);
-  return inicio ? formatTime(inicio) : hora || 'Hora a confirmar';
-}
 
 export default function SubastasListScreen({ navigation }) {
   const { user } = useAuth();
@@ -88,10 +77,7 @@ export default function SubastasListScreen({ navigation }) {
               <Text style={styles.badgeText}>{item.categoria}</Text>
             </View>
           </View>
-          <View style={styles.scheduleRow}>
-            <Text style={[styles.cardLine, styles.scheduleDate]} numberOfLines={1}>Fecha {fechaInicio(item.fecha, item.hora)}</Text>
-            <Text style={styles.startTime} numberOfLines={1}>Inicio {horaInicio(item.fecha, item.hora)}</Text>
-          </View>
+          <Text style={styles.cardLine}>📅 {item.fecha} · {item.hora}</Text>
           <Text style={styles.cardLine}>📍 {item.ubicacion}</Text>
           <View style={styles.cardFooter}>
             <Text style={styles.cardMeta}>{item.cantidadItems} items · {item.moneda}</Text>
@@ -128,16 +114,7 @@ const styles = StyleSheet.create({
   cardTitle: { fontSize: 18, fontWeight: '700', color: colors.text },
   badge: { paddingHorizontal: spacing.sm, paddingVertical: 2, borderRadius: radius.sm },
   badgeText: { color: '#fff', fontWeight: '700', fontSize: 12, textTransform: 'capitalize' },
-  scheduleRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    gap: spacing.sm,
-    marginTop: spacing.xs,
-  },
   cardLine: { color: colors.textMuted, marginTop: spacing.xs },
-  scheduleDate: { marginTop: 0, flex: 1 },
-  startTime: { color: colors.primary, fontWeight: '800', fontSize: 13 },
   cardFooter: { flexDirection: 'row', justifyContent: 'space-between', marginTop: spacing.sm },
   cardMeta: { color: colors.text, fontWeight: '600' },
   estado: { color: colors.success, fontWeight: '700', textTransform: 'capitalize' },

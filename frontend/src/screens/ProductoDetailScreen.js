@@ -11,7 +11,6 @@ import { productosApi } from '../api/endpoints';
 import Loading from '../components/Loading';
 import ErrorView from '../components/ErrorView';
 import { goBackOrReturnTo, navigateWithReturnTo } from '../navigationUtils';
-import ScreenHeader from '../components/ScreenHeader';
 
 const p = {
   background:   '#F9F5FF',
@@ -108,11 +107,20 @@ export default function ProductoDetailScreen({ navigation, route }) {
 
   return (
     <View style={{ flex: 1, backgroundColor: p.background }}>
-      <ScreenHeader
-        navigation={navigation}
-        route={route}
-        title={producto.descripcionCatalogo || `Producto #${producto.id}`}
-      />
+      {/* Header */}
+      <View style={[styles.header, { paddingTop: insets.top + 10 }]}>
+        <TouchableOpacity
+          onPress={() => goBackOrReturnTo(navigation, route)}
+          style={styles.backBtn}
+          hitSlop={10}
+        >
+          <MaterialIcons name="arrow-back" size={22} color={p.text} />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle} numberOfLines={1}>
+          {producto.descripcionCatalogo || `Producto #${producto.id}`}
+        </Text>
+        <View style={{ width: 36 }} />
+      </View>
 
       <ScrollView
         contentContainerStyle={{ paddingBottom: insets.bottom + 32 }}
@@ -203,7 +211,7 @@ export default function ProductoDetailScreen({ navigation, route }) {
               <InfoRow label="Subasta" value={`#${producto.subastaId}`} />
               <InfoRow label="Fecha" value={producto.subastaFecha} />
               <InfoRow label="Hora" value={producto.subastaHora} />
-              <InfoRow label="Comisión" value={producto.comision != null ? `${producto.comision}%` : null} />
+              <InfoRow label="Comisión" value={producto.comision != null ? `${producto.moneda || 'ARS'} ${Number(producto.comision).toLocaleString('es-AR')}` : null} />
             </Section>
           )}
 

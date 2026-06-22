@@ -7,7 +7,6 @@ import { productosApi } from '../api/endpoints';
 import Loading from '../components/Loading';
 import ErrorView from '../components/ErrorView';
 import { goBackOrReturnTo } from '../navigationUtils';
-import ScreenHeader from '../components/ScreenHeader';
 
 const p = {
   background: '#F9F5FF', surface: '#FFFFFF', surfaceLow: '#F2EFFF',
@@ -44,7 +43,13 @@ export default function ObjetoVendidoScreen({ navigation, route }) {
 
   return (
     <View style={styles.screen}>
-      <ScreenHeader navigation={navigation} route={route} title="Objeto vendido" />
+      <View style={[styles.header, { paddingTop: insets.top + 10 }]}>
+        <TouchableOpacity onPress={() => goBackOrReturnTo(navigation, route)} style={styles.back} hitSlop={10}>
+          <MaterialIcons name="arrow-back" size={22} color={p.text} />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Objeto vendido</Text>
+        <View style={{ width: 36 }} />
+      </View>
 
       <ScrollView contentContainerStyle={styles.body}>
         <View style={styles.heroIcon}><MaterialIcons name="sell" size={38} color={p.success} /></View>
@@ -68,7 +73,7 @@ export default function ObjetoVendidoScreen({ navigation, route }) {
 
         <View style={styles.card}>
           <Info label={compraEmpresa ? 'Valor base' : 'Precio final'} value={money(venta.moneda, venta.importeVenta)} />
-          <Info label={`Comisión (${venta.comisionPorcentaje || 0}%)`} value={`− ${money(venta.moneda, venta.comisionImporte)}`} />
+          <Info label="Comisión" value={`− ${money(venta.moneda, venta.comisionImporte)}`} />
           <View style={styles.divider} />
           <Info label="Importe neto para vos" value={money(venta.moneda, venta.importeNeto)} strong />
         </View>

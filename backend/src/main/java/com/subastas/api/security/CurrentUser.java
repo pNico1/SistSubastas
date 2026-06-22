@@ -10,6 +10,11 @@ public final class CurrentUser {
 
     private CurrentUser() {}
 
+    public static boolean isAuthenticated() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        return auth != null && auth.isAuthenticated() && auth.getPrincipal() instanceof AuthPrincipal;
+    }
+
     public static AuthPrincipal get() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         if (auth == null || !(auth.getPrincipal() instanceof AuthPrincipal p)) {

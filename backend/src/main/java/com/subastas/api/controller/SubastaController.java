@@ -66,7 +66,7 @@ public class SubastaController {
     @GetMapping("/{id}/items/{itemId}/puja-actual")
     public Map<String, Object> getPujaActual(@PathVariable Integer id, @PathVariable Integer itemId) {
         OfertaActualDto oferta = subastaService.getOfertaActual(id, itemId);
-        return Map.of("precioActual",
+        return java.util.Collections.singletonMap("precioActual",
                 oferta.ofertaActual() == null ? oferta.precioBase() : oferta.ofertaActual());
     }
 

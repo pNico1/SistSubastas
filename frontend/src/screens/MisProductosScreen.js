@@ -14,7 +14,6 @@ import { productosApi } from '../api/endpoints';
 import Loading from '../components/Loading';
 import ErrorView from '../components/ErrorView';
 import { goBackOrReturnTo } from '../navigationUtils';
-import ScreenHeader from '../components/ScreenHeader';
 
 const palette = {
   background: '#F9F5FF',
@@ -170,7 +169,19 @@ export default function MisProductosScreen({ navigation, route }) {
 
   return (
     <View style={styles.screen}>
-      <ScreenHeader navigation={navigation} route={route} title="Mis productos" />
+      <View style={[styles.header, { paddingTop: insets.top + 10 }]}>
+        <TouchableOpacity
+          onPress={() => goBackOrReturnTo(navigation, route)}
+          style={styles.backButton}
+          hitSlop={10}
+          accessibilityRole="button"
+          accessibilityLabel="Volver"
+        >
+          <MaterialIcons name="arrow-back" size={22} color={palette.text} />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Mis productos</Text>
+        <View style={styles.headerSpacer} />
+      </View>
 
       <FlatList
         data={productos}

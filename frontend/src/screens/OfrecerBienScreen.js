@@ -190,7 +190,7 @@ export default function OfrecerBienScreen({ navigation, route }) {
         <Text style={styles.blockedText}>
           Tu cuenta todavía está pendiente de aprobación. Vas a poder enviar un bien cuando un administrador la verifique.
         </Text>
-          <Button title="Volver al inicio" onPress={() => navigation.navigate('Bidster')} variant="accent" />
+        <Button title="Volver al inicio" onPress={() => navigation.navigate('Bidster')} variant="accent" />
         </View>
         <BottomNavBar navigation={navigation} />
       </View>
@@ -202,10 +202,7 @@ export default function OfrecerBienScreen({ navigation, route }) {
       <TopAppBar navigation={navigation} />
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView
-          contentContainerStyle={[
-            styles.container,
-            { paddingTop: insets.top + 80, paddingBottom: insets.bottom + 80 },
-          ]}
+          contentContainerStyle={[styles.container, { paddingTop: insets.top + 80, paddingBottom: insets.bottom + 80 }]}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >

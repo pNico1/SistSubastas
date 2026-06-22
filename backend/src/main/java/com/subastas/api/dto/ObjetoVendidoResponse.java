@@ -11,7 +11,6 @@ public record ObjetoVendidoResponse(
         LocalDateTime fechaVenta,
         String compradorTipo,
         BigDecimal importeVenta,
-        BigDecimal comisionPorcentaje,
         BigDecimal comisionImporte,
         BigDecimal importeNeto,
         String moneda,

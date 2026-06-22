@@ -35,14 +35,8 @@ const p = {
 };
 
 function StatCard({ icon, label, value, accent, filled, onPress }) {
-  const interactive = Boolean(onPress);
   return (
-    <TouchableOpacity
-      style={[styles.statCard, filled && { backgroundColor: p.primary }]}
-      onPress={onPress}
-      disabled={!interactive}
-      activeOpacity={0.78}
-    >
+    <TouchableOpacity style={[styles.statCard, filled && { backgroundColor: p.primary }]} onPress={onPress} disabled={!onPress} activeOpacity={0.78}>
       <MaterialIcons
         name={icon}
         size={22}
@@ -52,22 +46,8 @@ function StatCard({ icon, label, value, accent, filled, onPress }) {
       <Text style={[styles.statLabel, filled && { color: 'rgba(255,255,255,0.7)' }]}>
         {label}
       </Text>
-      <Text
-        style={[styles.statValue, filled && { color: p.white }]}
-        numberOfLines={1}
-        adjustsFontSizeToFit
-        minimumFontScale={0.72}
-      >
-        {value}
-      </Text>
-      {interactive ? (
-        <MaterialIcons
-          name="chevron-right"
-          size={18}
-          color={filled ? 'rgba(255,255,255,0.78)' : p.primary}
-          style={styles.statChevron}
-        />
-      ) : null}
+      <Text style={[styles.statValue, filled && { color: p.white }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.72}>{value}</Text>
+      {onPress ? <MaterialIcons name="chevron-right" size={18} color={filled ? 'rgba(255,255,255,.78)' : p.primary} style={styles.statChevron} /> : null}
     </TouchableOpacity>
   );
 }
@@ -84,11 +64,10 @@ function ActionRow({ icon, label, iconColor, iconBg, onPress }) {
   );
 }
 
-function totalPagadoLabel(importesPagados) {
-  if (!importesPagados.length) return 'ARS 0';
-  const [moneda, importe] = importesPagados[0];
-  const total = Number(importe || 0).toLocaleString('es-AR', { maximumFractionDigits: 0 });
-  return `${moneda} ${total}${importesPagados.length > 1 ? '+' : ''}`;
+function totalPagadoLabel(values) {
+  if (!values.length) return 'ARS 0';
+  const [moneda, importe] = values[0];
+  return `${moneda} ${Number(importe || 0).toLocaleString('es-AR', { maximumFractionDigits: 0 })}${values.length > 1 ? '+' : ''}`;
 }
 
 export default function PerfilScreen({ navigation }) {
@@ -149,24 +128,8 @@ export default function PerfilScreen({ navigation }) {
     }
   }, [load]);
 
-  if (loading) {
-    return (
-      <View style={{ flex: 1, backgroundColor: p.background }}>
-        <TopAppBar navigation={navigation} />
-        <Loading text="Cargando tu cuenta..." />
-        <BottomNavBar navigation={navigation} />
-      </View>
-    );
-  }
-  if (error) {
-    return (
-      <View style={{ flex: 1, backgroundColor: p.background }}>
-        <TopAppBar navigation={navigation} />
-        <ErrorView error={error} onRetry={() => { setLoading(true); load(); }} />
-        <BottomNavBar navigation={navigation} />
-      </View>
-    );
-  }
+  if (loading) return <View style={{ flex: 1, backgroundColor: p.background }}><TopAppBar navigation={navigation} /><Loading text="Cargando tu cuenta..." /><BottomNavBar navigation={navigation} /></View>;
+  if (error) return <View style={{ flex: 1, backgroundColor: p.background }}><TopAppBar navigation={navigation} /><ErrorView error={error} onRetry={() => { setLoading(true); load(); }} /><BottomNavBar navigation={navigation} /></View>;
 
   const importesPagados = Object.entries(metricas?.victorias?.importesPorMoneda || {});
   const victorias = metricas?.victorias?.total || 0;
@@ -262,19 +225,8 @@ export default function PerfilScreen({ navigation }) {
 
         {/* Stats */}
         <View style={styles.statsRow}>
-          <StatCard
-            icon="groups"
-            label="Asistencias"
-            value={metricas?.asistencias?.total || 0}
-            onPress={() => navigation.navigate('MetricasAsistencias')}
-          />
-          <StatCard
-            icon="emoji-events"
-            label="Victorias"
-            value={victorias}
-            filled
-            onPress={() => navigation.navigate('MetricasVictorias')}
-          />
+          <StatCard icon="groups" label="Asistencias" value={metricas?.asistencias?.total || 0} onPress={() => navigation.navigate('MetricasAsistencias')} />
+          <StatCard icon="emoji-events" label="Victorias" value={victorias} filled onPress={() => navigation.navigate('MetricasVictorias')} />
           <StatCard
             icon="payments"
             label="Total pagado"
@@ -333,6 +285,10 @@ export default function PerfilScreen({ navigation }) {
             iconBg={p.tertiaryFaint}
             onPress={() => navigation.navigate('MisProductos')}
           />
+          <View style={styles.divider} />
+          <ActionRow icon="account-balance" label="Cuenta para cobrar ventas" iconColor={p.primary} iconBg={p.primaryFaint} onPress={() => navigation.navigate('CuentaCobro')} />
+          <View style={styles.divider} />
+          <ActionRow icon="receipt-long" label="Liquidaciones de ventas" iconColor={p.success} iconBg="rgba(22,163,74,0.10)" onPress={() => navigation.navigate('Liquidaciones')} />
         </View>
 
         {/* Mis pujas recientes */}
@@ -501,11 +457,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   statValue: { fontSize: 20, fontWeight: '900', color: p.text },
-  statChevron: {
-    position: 'absolute',
-    top: 8,
-    right: 7,
-  },
+  statChevron: { position: 'absolute', top: 8, right: 7 },
 
   // Actions
   actionsCard: {

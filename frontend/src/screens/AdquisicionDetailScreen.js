@@ -9,7 +9,6 @@ import { adquisicionesApi } from '../api/endpoints';
 import Loading from '../components/Loading';
 import ErrorView from '../components/ErrorView';
 import { goBackOrReturnTo } from '../navigationUtils';
-import ScreenHeader from '../components/ScreenHeader';
 
 const palette = {
   background: '#F9F5FF', surface: '#FFFFFF', surfaceLow: '#F2EFFF',
@@ -67,7 +66,13 @@ export default function AdquisicionDetailScreen({ navigation, route }) {
 
   return (
     <View style={styles.screen}>
-      <ScreenHeader navigation={navigation} route={route} title="Detalle de compra" />
+      <View style={[styles.header, { paddingTop: insets.top + 10 }]}>
+        <TouchableOpacity onPress={() => goBackOrReturnTo(navigation, route)} style={styles.backButton} hitSlop={10}>
+          <MaterialIcons name="arrow-back" size={22} color={palette.text} />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Detalle de compra</Text>
+        <View style={styles.headerSpacer} />
+      </View>
 
       <ScrollView contentContainerStyle={[styles.body, { paddingBottom: insets.bottom + 24 }]}>
         <Text style={styles.producto}>{adq.producto || `Producto #${adq.productoId}`}</Text>
@@ -77,11 +82,11 @@ export default function AdquisicionDetailScreen({ navigation, route }) {
         </View>
 
         <View style={styles.card}>
-          <Row label="Importe ofertado" value={`$${num(adq.importe).toLocaleString('es-AR')}`} />
-          <Row label="Costo de envío" value={`$${num(adq.costoEnvio).toLocaleString('es-AR')}`} />
-          <Row label="Comisión" value={`$${num(adq.comision).toLocaleString('es-AR')}`} />
+          <Row label="Importe ofertado" value={`${adq.moneda || 'ARS'} ${num(adq.importe).toLocaleString('es-AR')}`} />
+          <Row label="Costo de envío" value={`${adq.moneda || 'ARS'} ${num(adq.costoEnvio).toLocaleString('es-AR')}`} />
+          <Row label="Comisión" value={`${adq.moneda || 'ARS'} ${num(adq.comision).toLocaleString('es-AR')}`} />
           <View style={styles.divider} />
-          <Row label="Total a pagar" value={`$${total.toLocaleString('es-AR')}`} strong />
+          <Row label="Total a pagar" value={`${adq.moneda || 'ARS'} ${total.toLocaleString('es-AR')}`} strong />
         </View>
 
         {adq.estado === 'en_mora' ? (

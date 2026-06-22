@@ -17,7 +17,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.util.Base64;
 
 @Service
@@ -65,11 +64,9 @@ public class ObjetoVendidoService {
 
     private ObjetoVendidoResponse response(Producto producto, Integer subastaId,
                                            java.time.LocalDateTime fecha, String compradorTipo,
-                                           BigDecimal importe, BigDecimal porcentaje, String estadoPago) {
+                                           BigDecimal importe, BigDecimal comisionRegistrada, String estadoPago) {
         BigDecimal precio = importe == null ? BigDecimal.ZERO : importe;
-        BigDecimal tasa = porcentaje == null ? BigDecimal.ZERO : porcentaje;
-        BigDecimal comision = precio.multiply(tasa)
-                .divide(new BigDecimal("100"), 2, RoundingMode.HALF_UP);
+        BigDecimal comision = comisionRegistrada == null ? BigDecimal.ZERO : comisionRegistrada;
         String moneda = subastaRepo.findById(subastaId).map(s -> s.getMoneda()).orElse("ARS");
         if (moneda == null || moneda.isBlank()) moneda = "ARS";
 
@@ -80,7 +77,7 @@ public class ObjetoVendidoService {
                 .orElse(null);
 
         return new ObjetoVendidoResponse(producto.getIdentificador(), producto.getDescripcionCatalogo(), foto,
-                subastaId, fecha, compradorTipo, precio, tasa, comision,
+                subastaId, fecha, compradorTipo, precio, comision,
                 precio.subtract(comision), moneda, estadoPago == null ? "pendiente" : estadoPago);
     }
 }

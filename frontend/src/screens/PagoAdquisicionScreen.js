@@ -9,7 +9,6 @@ import { adquisicionesApi, clienteApi } from '../api/endpoints';
 import Loading from '../components/Loading';
 import ErrorView from '../components/ErrorView';
 import { goBackOrReturnTo } from '../navigationUtils';
-import ScreenHeader from '../components/ScreenHeader';
 
 const palette = {
   background: '#F9F5FF', surface: '#FFFFFF', surfaceLow: '#F2EFFF',
@@ -104,7 +103,13 @@ export default function PagoAdquisicionScreen({ navigation, route }) {
 
   return (
     <View style={styles.screen}>
-      <ScreenHeader navigation={navigation} route={route} title="Pagar compra" />
+      <View style={[styles.header, { paddingTop: insets.top + 10 }]}>
+        <TouchableOpacity onPress={() => goBackOrReturnTo(navigation, route)} style={styles.backButton} hitSlop={10}>
+          <MaterialIcons name="arrow-back" size={22} color={palette.text} />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Pagar compra</Text>
+        <View style={styles.headerSpacer} />
+      </View>
 
       <ScrollView contentContainerStyle={[styles.body, { paddingBottom: insets.bottom + 24 }]}>
         <View style={styles.totalCard}>

@@ -6,6 +6,7 @@ import com.subastas.api.common.dto.PageResponse;
 import com.subastas.api.domain.*;
 import com.subastas.api.dto.*;
 import com.subastas.api.repository.*;
+import com.subastas.api.security.CurrentUser;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -101,16 +102,19 @@ public class SubastaService {
                 : null;
 
         PujaRules.Limites lim = PujaRules.calcular(item.getPrecioBase(), ofertaActual, subasta.getCategoria());
+        boolean puedeVerPrecio = CurrentUser.isAuthenticated();
 
         return new OfertaActualDto(
-                itemId, subastaId, item.getPrecioBase(), ofertaActual, numeroPostor,
-                top != null ? top.getFechaHora() : null,
-                lim.minima(), lim.maxima()
+                itemId, subastaId, puedeVerPrecio ? item.getPrecioBase() : null,
+                puedeVerPrecio ? ofertaActual : null, puedeVerPrecio ? numeroPostor : null,
+                puedeVerPrecio && top != null ? top.getFechaHora() : null,
+                puedeVerPrecio ? lim.minima() : null, puedeVerPrecio ? lim.maxima() : null
         );
     }
 
     public List<PujaDto> getPujasHistory(Integer subastaId, Integer itemId) {
         findItemEnSubasta(subastaId, itemId);
+        if (!CurrentUser.isAuthenticated()) return List.of();
         return pujoRepo.findByItemOrderByFechaHoraAsc(itemId).stream()
                 .map(p -> new PujaDto(p.getIdentificador(), subastaId, itemId,
                         null, p.getImporte(), p.getGanador(), p.getFechaHora()))
@@ -148,6 +152,7 @@ public class SubastaService {
         String desc = productoRepo.findById(i.getProducto())
                 .map(Producto::getDescripcionCatalogo).orElse(null);
         return new SubastaItemDto(i.getIdentificador(), i.getProducto(), desc,
-                i.getPrecioBase(), i.getComision(), i.getSubastado());
+                CurrentUser.isAuthenticated() ? i.getPrecioBase() : null,
+                CurrentUser.isAuthenticated() ? i.getComision() : null, i.getSubastado());
     }
 }

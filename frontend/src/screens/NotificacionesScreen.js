@@ -8,7 +8,6 @@ import { clienteApi } from '../api/endpoints';
 import Loading from '../components/Loading';
 import ErrorView from '../components/ErrorView';
 import { goBackOrReturnTo } from '../navigationUtils';
-import ScreenHeader from '../components/ScreenHeader';
 
 const p = {
   background:   '#F9F5FF',
@@ -45,6 +44,8 @@ const TIPO_CONFIG = {
   PAGO_CONFIRMADO: { icon: 'payments', color: p.success, bg: p.successFaint },
   MULTA: { icon: 'gavel', color: p.danger, bg: p.dangerFaint },
   MULTA_PAGADA: { icon: 'check-circle', color: p.success, bg: p.successFaint },
+  LIQUIDACION_ENVIADA: { icon: 'account-balance', color: p.success, bg: p.successFaint },
+  CUENTA_COBRO_REQUERIDA: { icon: 'account-balance', color: p.warning, bg: p.warningFaint },
   DEFAULT: { icon: 'notifications', color: p.muted, bg: p.surfaceLow },
 };
 
@@ -64,6 +65,8 @@ function notificationTarget(tipo) {
   if (base === 'PUJA_GANADA') return { screen: 'EntregaCompra', params: { id } };
   if (base === 'PAGO_CONFIRMADO') return { screen: 'AdquisicionDetail', params: { id } };
   if (base === 'MULTA' || base === 'MULTA_PAGADA') return { screen: 'MultaDetail', params: { id } };
+  if (base === 'LIQUIDACION_ENVIADA') return { screen: 'Liquidaciones', params: {} };
+  if (base === 'CUENTA_COBRO_REQUERIDA') return { screen: 'CuentaCobro', params: {} };
   if (base === 'SEGURO_APROBADO' || base === 'SEGURO_RECHAZADO') {
     return { screen: 'PolizaProducto', params: { id } };
   }
@@ -134,12 +137,17 @@ export default function NotificacionesScreen({ navigation, route }) {
 
   return (
     <View style={{ flex: 1, backgroundColor: p.background }}>
-      <ScreenHeader
-        navigation={navigation}
-        route={route}
-        title="Notificaciones"
-        showNotifications={false}
-      />
+      <View style={styles.header}>
+        <TouchableOpacity
+          onPress={() => goBackOrReturnTo(navigation, route)}
+          style={styles.backBtn}
+          hitSlop={10}
+        >
+          <MaterialIcons name="arrow-back" size={22} color={p.text} />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Notificaciones</Text>
+        <View style={{ width: 36 }} />
+      </View>
 
       <FlatList
         data={items}

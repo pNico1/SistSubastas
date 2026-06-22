@@ -58,12 +58,13 @@ public class SubastaTiempoService {
     private final ProductoRepository productoRepo;
     private final CompraEmpresaRepository compraEmpresaRepo;
     private final NotificacionService notificacionService;
+    private final LiquidacionVentaService liquidacionService;
 
     public SubastaTiempoService(SubastaRepository subastaRepo, CatalogoRepository catalogoRepo,
                                 ItemCatalogoRepository itemRepo, PujoRepository pujoRepo,
                                 RegistroDeSubastaRepository registroRepo, AsistenteRepository asistenteRepo,
                                 ProductoRepository productoRepo, CompraEmpresaRepository compraEmpresaRepo,
-                                NotificacionService notificacionService) {
+                                NotificacionService notificacionService, LiquidacionVentaService liquidacionService) {
         this.subastaRepo = subastaRepo;
         this.catalogoRepo = catalogoRepo;
         this.itemRepo = itemRepo;
@@ -73,6 +74,7 @@ public class SubastaTiempoService {
         this.productoRepo = productoRepo;
         this.compraEmpresaRepo = compraEmpresaRepo;
         this.notificacionService = notificacionService;
+        this.liquidacionService = liquidacionService;
     }
 
     /**
@@ -202,7 +204,12 @@ public class SubastaTiempoService {
         c.setPrecioBase(item.getPrecioBase());
         c.setComision(item.getComision());
         c.setFecha(LocalDateTime.now());
-        compraEmpresaRepo.save(c);
+        c = compraEmpresaRepo.save(c);
+        Producto producto = productoRepo.findById(item.getProducto()).orElse(null);
+        if (producto != null) {
+            String moneda = subastaRepo.findById(subastaId).map(Subasta::getMoneda).orElse("ARS");
+            liquidacionService.registrar(producto, null, c.getId(), c.getPrecioBase(), c.getComision(), moneda, true);
+        }
     }
 
     /** Registra la venta (adquisicion) del item al ganador. */
@@ -228,6 +235,11 @@ public class SubastaTiempoService {
         r.setEstado("pendiente");
         r.setFecha(LocalDateTime.now());
         r = registroRepo.save(r);
+        Producto producto = productoRepo.findById(item.getProducto()).orElse(null);
+        if (producto != null) {
+            String moneda = subastaRepo.findById(subastaId).map(Subasta::getMoneda).orElse("ARS");
+            liquidacionService.registrar(producto, r.getIdentificador(), null, r.getImporte(), r.getComision(), moneda, false);
+        }
         notificacionService.crearParaCliente(clienteGanador, "PUJA_GANADA:" + r.getIdentificador(),
                 "Ganaste la puja. Elegí si querés retirar la pieza o recibirla en tu domicilio y completá el pago.");
     }

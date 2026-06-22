@@ -84,6 +84,7 @@ export default function ItemDetailScreen({ route, navigation }) {
 
   // Revalida la union real contra el backend, por si el param venia desactualizado.
   useEffect(() => {
+    if (!user) return undefined;
     let alive = true;
     clienteApi.misSubastas()
       .then((list) => {
@@ -91,7 +92,7 @@ export default function ItemDetailScreen({ route, navigation }) {
       })
       .catch(() => {});
     return () => { alive = false; };
-  }, [subastaId]);
+  }, [subastaId, user]);
 
   // Item activo + segundos de inactividad restantes (motor temporal).
   const fetchItemActivo = useCallback(async () => {
@@ -155,34 +156,17 @@ export default function ItemDetailScreen({ route, navigation }) {
 
   if (pendingVerification) {
     return (
-      <View style={styles.screen}>
-        <ScreenHeader navigation={navigation} route={route} title="Pujar" />
-        <View style={styles.blocked}>
+      <View style={styles.blocked}>
         <Text style={styles.blockedTitle}>Cuenta en verificación</Text>
         <Text style={styles.blockedText}>
           Tu cuenta todavía está pendiente de aprobación. No podés pujar hasta que sea verificada.
         </Text>
-        </View>
       </View>
     );
   }
 
-  if (loading) {
-    return (
-      <View style={styles.screen}>
-        <ScreenHeader navigation={navigation} route={route} title="Pujar" />
-        <Loading text="Cargando lote..." />
-      </View>
-    );
-  }
-  if (error && !oferta) {
-    return (
-      <View style={styles.screen}>
-        <ScreenHeader navigation={navigation} route={route} title="Pujar" />
-        <ErrorView error={error} onRetry={() => { setLoading(true); fetchOferta(); }} />
-      </View>
-    );
-  }
+  if (loading) return <Loading text="Cargando lote..." />;
+  if (error && !oferta) return <ErrorView error={error} onRetry={() => { setLoading(true); fetchOferta(); }} />;
 
   const tieneOferta = oferta.ofertaActual != null;
   const esActivo = itemActivoId != null && Number(itemActivoId) === Number(itemId);
@@ -192,12 +176,12 @@ export default function ItemDetailScreen({ route, navigation }) {
     : p.success;
 
   return (
-    <View style={styles.screen}>
-      <ScreenHeader navigation={navigation} route={route} title="Pujar" />
-      <ScrollView
+    <View style={{ flex: 1, backgroundColor: p.background }}>
+    <ScreenHeader navigation={navigation} route={route} title="Detalle del lote" showNotifications={!!user} />
+    <ScrollView
       style={{ backgroundColor: p.background }}
       contentContainerStyle={[styles.container, { paddingBottom: insets.bottom + 32 }]}
-      >
+    >
       {/* Header editorial */}
       <View style={styles.editorialHeader}>
         <View style={styles.lotBadge}>
@@ -215,14 +199,24 @@ export default function ItemDetailScreen({ route, navigation }) {
         </ScrollView>
       ) : null}
 
-      {/* Precio base */}
+      {!user ? (
+        <View style={styles.aviso}>
+          <MaterialIcons name="lock" size={18} color={p.primary} />
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.avisoText, { color: p.text, fontWeight: '800' }]}>Precios disponibles para usuarios registrados</Text>
+            <Text style={styles.avisoText}>Podés ver la pieza y sus fotos. Iniciá sesión para consultar precios y participar.</Text>
+          </View>
+          <TouchableOpacity onPress={() => navigation.navigate('Login')}><Text style={{ color: p.primary, fontWeight: '900' }}>Ingresar</Text></TouchableOpacity>
+        </View>
+      ) : (
       <View style={styles.baseCard}>
         <Text style={styles.baseLabel}>PRECIO BASE</Text>
         <Text style={styles.baseValue}>{oferta.precioBase}</Text>
       </View>
+      )}
 
       {/* Oferta actual — carta principal */}
-      <View style={styles.ofertaCard}>
+      {user ? <View style={styles.ofertaCard}>
         <View style={styles.ofertaTop}>
           <Text style={styles.ofertaLabel}>OFERTA ACTUAL</Text>
           <View style={[styles.liveDot, tieneOferta && { backgroundColor: p.success }]} />
@@ -253,7 +247,7 @@ export default function ItemDetailScreen({ route, navigation }) {
             </Text>
           </View>
         </View>
-      </View>
+      </View> : null}
 
       {/* Barra de inactividad del item activo */}
       {esActivo && segundos != null ? (
@@ -290,7 +284,12 @@ export default function ItemDetailScreen({ route, navigation }) {
       </View>
 
       {/* Formulario de puja o aviso */}
-      {!joined ? (
+      {!user ? (
+        <TouchableOpacity style={styles.aviso} onPress={() => navigation.navigate('Login')}>
+          <MaterialIcons name="login" size={18} color={p.primary} />
+          <Text style={[styles.avisoText, { color: p.primary, fontWeight: '900' }]}>Iniciá sesión para unirte y pujar</Text>
+        </TouchableOpacity>
+      ) : !joined ? (
         <View style={styles.aviso}>
           <MaterialIcons name="info-outline" size={18} color={p.warning} />
           <Text style={styles.avisoText}>
@@ -342,13 +341,12 @@ export default function ItemDetailScreen({ route, navigation }) {
           </TouchableOpacity>
         </View>
       )}
-      </ScrollView>
+    </ScrollView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: p.background },
   blocked: { flex: 1, backgroundColor: p.background, padding: 24, alignItems: 'center', justifyContent: 'center' },
   blockedTitle: { color: p.text, fontSize: 22, fontWeight: '800', marginBottom: 8, textAlign: 'center' },
   blockedText: { color: p.muted, fontSize: 15, lineHeight: 22, textAlign: 'center' },

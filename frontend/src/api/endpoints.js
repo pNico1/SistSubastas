@@ -110,6 +110,9 @@ export const clienteApi = {
   notificaciones: () => client.get('/api/clientes/me/notifications').then((r) => r.data),
   marcarNotificacionLeida: (id) =>
     client.patch(`/api/clientes/me/notifications/${id}/read`).then((r) => r.data),
+  cuentasCobro: () => client.get('/api/clientes/me/cuentas-cobro').then((r) => r.data),
+  guardarCuentaCobro: (data) => client.post('/api/clientes/me/cuentas-cobro', data).then((r) => r.data),
+  liquidaciones: () => client.get('/api/clientes/me/liquidaciones').then((r) => r.data),
 };
 
 // ---- ADQUISICIONES (compras de piezas ganadas — Área 1) ----

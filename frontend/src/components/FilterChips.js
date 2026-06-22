@@ -8,6 +8,11 @@ import {
 
 const DEFAULT_FILTERS = ['Todos', 'En Vivo', 'Arte', 'Relojes', 'Autos'];
 
+function filterLabel(value) {
+  const text = String(value || '').replaceAll('_', ' ');
+  return text.charAt(0).toUpperCase() + text.slice(1).toLowerCase();
+}
+
 // Controlado: recibe filters/active/onSelect para filtrar la lista real.
 export default function FilterChips({
   filters = DEFAULT_FILTERS,
@@ -32,7 +37,7 @@ export default function FilterChips({
             onPress={() => onSelect && onSelect(item)}
           >
             <Text style={[styles.text, isActive && styles.activeText]}>
-              {item}
+              {filterLabel(item)}
             </Text>
           </TouchableOpacity>
         );

@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { clienteApi } from '../api/endpoints';
 import { useAuth } from '../context/AuthContext';
 import TextField from '../components/TextField';
 import Button from '../components/Button';
-import ScreenHeader from '../components/ScreenHeader';
 import { colors, spacing } from '../theme';
 
 export default function CheckPaymentScreen({ route, navigation }) {
@@ -66,15 +66,9 @@ export default function CheckPaymentScreen({ route, navigation }) {
   }
 
   return (
-    <View style={styles.screen}>
-      <ScreenHeader
-        navigation={navigation}
-        route={route}
-        title="Cheque certificado"
-        showNotifications={false}
-        onBackPress={() => navigation.goBack()}
-      />
+    <SafeAreaView style={styles.screen} edges={['top']}>
       <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
+        <BackButton onPress={() => navigation.goBack()} />
         <Text style={styles.title}>CHEQUE</Text>
 
         <TextField label="Banco emisor" value={form.banco} onChangeText={(v) => setField('banco', v)} error={errors.banco} />
@@ -86,7 +80,7 @@ export default function CheckPaymentScreen({ route, navigation }) {
           <Button title="Finalizar" onPress={save} loading={saving} />
         </View>
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 }
 

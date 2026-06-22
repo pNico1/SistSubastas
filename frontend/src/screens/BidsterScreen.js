@@ -24,10 +24,16 @@ const MAX_ITEMS_POR_SUBASTA = 3;
 const MAX_SLIDES = 15;
 
 function formatMoney(moneda, val) {
-  if (val == null) return '—';
+  if (val == null) return 'Iniciá sesión para ver';
   const n = Number(val);
   const formatted = isNaN(n) ? String(val) : n.toLocaleString('es-AR');
   return `${moneda ? moneda + ' ' : ''}${formatted}`;
+}
+
+function firstPhotoUri(fotos) {
+  const foto = (fotos || [])[0];
+  if (foto?.contenidoBase64) return `data:image/jpeg;base64,${foto.contenidoBase64}`;
+  return foto?.url || null;
 }
 
 export default function BidsterScreen({ navigation }) {
@@ -66,15 +72,16 @@ export default function BidsterScreen({ navigation }) {
 
       // Oferta actual de cada item (para mostrar el monto real).
       const conOferta = await Promise.all(
-        pares.map(({ s, it }) =>
-          subastasApi
-            .getOfertaActual(s.id, it.itemId)
-            .then((of) => ({ s, it, of }))
-            .catch(() => ({ s, it, of: null }))
-        )
+        pares.map(async ({ s, it }) => {
+          const [of, fotos] = await Promise.all([
+            subastasApi.getOfertaActual(s.id, it.itemId).catch(() => null),
+            subastasApi.getItemPhotos(s.id, it.itemId).catch(() => []),
+          ]);
+          return { s, it, of, fotos };
+        })
       );
 
-      const data = conOferta.map(({ s, it, of }) => ({
+      const data = conOferta.map(({ s, it, of, fotos }) => ({
         key: `${s.id}-${it.itemId}`,
         subastaId: s.id,
         itemId: it.itemId,
@@ -83,7 +90,7 @@ export default function BidsterScreen({ navigation }) {
         currentBid: formatMoney(s.moneda, of?.ofertaActual ?? of?.precioBase ?? it.precioBase),
         lot: `#${it.itemId}`,
         endsIn: `${s.fecha || ''} ${s.hora || ''}`.trim() || 'pronto',
-        image: `https://picsum.photos/seed/sub${s.id}item${it.itemId}/800/1200`,
+        image: firstPhotoUri(fotos),
         joined: joinedIds.has(s.id),
       }));
 

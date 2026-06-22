@@ -1,10 +1,11 @@
 import React, { useCallback, useState } from 'react';
-import { View, Text, StyleSheet, Platform, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, Platform, TouchableOpacity, Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { clienteApi } from '../api/endpoints';
 import { navigateWithReturnTo } from '../navigationUtils';
+import { useAuth } from '../context/AuthContext';
 
 const palette = {
   background: '#F9F5FF',
@@ -17,9 +18,14 @@ const palette = {
 
 export default function TopAppBar({ navigation }) {
   const insets = useSafeAreaInsets();
+  const { user } = useAuth();
   const [noLeidas, setNoLeidas] = useState(0);
 
   const cargarNotificaciones = useCallback(async () => {
+    if (!user) {
+      setNoLeidas(0);
+      return;
+    }
     try {
       const data = await clienteApi.notificaciones();
       const pendientes = (data || []).filter((n) => !n.leido).length;
@@ -27,7 +33,22 @@ export default function TopAppBar({ navigation }) {
     } catch (err) {
       // si falla, no rompemos el header por esto
     }
-  }, []);
+  }, [user]);
+
+  const abrirNotificaciones = () => {
+    if (user) {
+      navigateWithReturnTo(navigation, 'Notificaciones');
+      return;
+    }
+    Alert.alert(
+      'Iniciá sesión',
+      'Necesitás iniciar sesión para ver tus notificaciones.',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        { text: 'Iniciar sesión', onPress: () => navigation.navigate('Login') },
+      ],
+    );
+  };
 
   // Recarga el contador cada vez que la pantalla toma foco (volver de notificaciones, etc).
   useFocusEffect(
@@ -43,7 +64,7 @@ export default function TopAppBar({ navigation }) {
 
         <TouchableOpacity
           style={styles.bellBtn}
-          onPress={() => navigateWithReturnTo(navigation, 'Notificaciones')}
+          onPress={abrirNotificaciones}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           activeOpacity={0.7}
         >

@@ -6,6 +6,7 @@ import com.subastas.api.domain.*;
 import com.subastas.api.dto.FotoProductoDto;
 import com.subastas.api.dto.ProductoDetalleDto;
 import com.subastas.api.repository.*;
+import com.subastas.api.security.CurrentUser;
 import org.springframework.stereotype.Service;
 
 import java.util.Base64;
@@ -61,6 +62,7 @@ public class ProductoConsultaService {
     }
 
     public ProductoDetalleDto toDetalle(Producto producto) {
+        boolean puedeVerPrecio = CurrentUser.isAuthenticated();
         ItemCatalogo item = itemRepo.findFirstByProducto(producto.getIdentificador()).orElse(null);
         Catalogo catalogo = item == null ? null : catalogoRepo.findById(item.getCatalogo()).orElse(null);
         Subasta subasta = catalogo == null || catalogo.getSubasta() == null
@@ -70,7 +72,7 @@ public class ProductoConsultaService {
 
         List<String> fotos = fotoRepo.findByProductoOrderByOrden(producto.getIdentificador()).stream()
                 .map(this::fotoContenido).toList();
-        ProductoDetalleDto.PolizaDto poliza = seguro == null ? null
+        ProductoDetalleDto.PolizaDto poliza = seguro == null || !puedeVerPrecio ? null
                 : new ProductoDetalleDto.PolizaDto(seguro.getNroPoliza(), cobertura(seguro),
                     seguro.getImporte(), seguro.getCompania());
 
@@ -78,8 +80,8 @@ public class ProductoConsultaService {
                 producto.getIdentificador(), producto.getIdentificador(), producto.getDescripcionCatalogo(),
                 producto.getDescripcionCompleta(), producto.getEstado(), producto.getDisponible(),
                 producto.getNombreArtista(), producto.getFechaObra(), producto.getHistoria(),
-                producto.getTerminosAceptados(), item == null ? null : item.getPrecioBase(),
-                item == null ? null : item.getComision(), subasta == null ? null : subasta.getMoneda(),
+                producto.getTerminosAceptados(), item == null || !puedeVerPrecio ? null : item.getPrecioBase(),
+                item == null || !puedeVerPrecio ? null : item.getComision(), subasta == null ? null : subasta.getMoneda(),
                 subasta == null ? null : subasta.getIdentificador(), subasta == null ? null : subasta.getFecha(),
                 subasta == null ? null : subasta.getHora(), subasta == null ? null : subasta.getUbicacion(),
                 poliza, fotos);

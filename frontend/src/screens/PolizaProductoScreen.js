@@ -7,7 +7,6 @@ import { productosApi } from '../api/endpoints';
 import Loading from '../components/Loading';
 import ErrorView from '../components/ErrorView';
 import { goBackOrReturnTo } from '../navigationUtils';
-import ScreenHeader from '../components/ScreenHeader';
 
 const p = {
   background: '#F9F5FF', surface: '#FFFFFF', surfaceLow: '#F2EFFF',
@@ -48,7 +47,13 @@ export default function PolizaProductoScreen({ navigation, route }) {
   const pendiente = seguro.estadoSolicitud === 'pendiente';
   return (
     <View style={styles.screen}>
-      <ScreenHeader navigation={navigation} route={route} title="Póliza de seguro" />
+      <View style={[styles.header, { paddingTop: insets.top + 10 }]}>
+        <TouchableOpacity onPress={() => goBackOrReturnTo(navigation, route)} style={styles.back} hitSlop={10}>
+          <MaterialIcons name="arrow-back" size={22} color={p.text} />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Póliza de seguro</Text>
+        <View style={{ width: 36 }} />
+      </View>
 
       <ScrollView contentContainerStyle={styles.body}>
         <View style={styles.heroIcon}>

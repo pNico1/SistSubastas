@@ -7,13 +7,10 @@ import {
   TouchableOpacity,
   Dimensions,
 } from 'react-native';
-import { useAuth } from '../context/AuthContext';
 
 const { width } = Dimensions.get('window');
 
 export default function BidCard({ item, navigation }) {
-  const { user } = useAuth();
-  const scheduleLabel = item.dateLabel || item.timeLeft;
   return (
     <View style={styles.card}>
       <Image
@@ -29,22 +26,11 @@ export default function BidCard({ item, navigation }) {
         </View>
       )}
 
-      {(scheduleLabel || item.startTime) && (
-        <View style={styles.timeBadge}>
-          <View style={styles.timeRow}>
-            {scheduleLabel ? (
-              <Text style={styles.timeText}>
-                {scheduleLabel}
-              </Text>
-            ) : null}
-            {item.startTime ? (
-              <Text style={styles.startTimeText}>
-                Inicio {item.startTime}
-              </Text>
-            ) : null}
-          </View>
-        </View>
-      )}
+      <View style={styles.timeBadge}>
+        <Text style={styles.timeText}>
+          {item.timeLeft}
+        </Text>
+      </View>
 
       <View style={styles.body}>
         <Text style={styles.title} numberOfLines={1}>
@@ -57,11 +43,7 @@ export default function BidCard({ item, navigation }) {
 
         <TouchableOpacity
           style={styles.button}
-          onPress={() =>
-            user
-              ? navigation.navigate('SubastaDetail', { id: item.id })
-              : navigation.navigate('Login')
-          }
+          onPress={() => navigation.navigate('SubastaDetail', { id: item.id })}
         >
           <Text style={styles.buttonText}>
             Ver subasta
@@ -120,7 +102,6 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     paddingHorizontal: 10,
     paddingVertical: 6,
-    maxWidth: width * 0.72,
 
     shadowColor: '#000',
     shadowOpacity: 0.1,
@@ -128,24 +109,10 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
 
-  timeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'flex-end',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-
   timeText: {
     color: '#0846ED',
     fontWeight: '700',
     fontSize: 13,
-  },
-
-  startTimeText: {
-    color: '#2B2A51',
-    fontWeight: '800',
-    fontSize: 12,
   },
 
   body: {
@@ -160,6 +127,7 @@ const styles = StyleSheet.create({
 
   category: {
     color: '#585781',
+    textTransform: 'capitalize',
     marginTop: 4,
     marginBottom: 16,
     fontSize: 14,

@@ -7,7 +7,6 @@ import { clienteApi, paisesApi } from '../api/endpoints';
 import Loading from '../components/Loading';
 import ErrorView from '../components/ErrorView';
 import { goBackOrReturnTo } from '../navigationUtils';
-import ScreenHeader from '../components/ScreenHeader';
 
 const p = { background: '#F9F5FF', surface: '#FFF', surfaceLow: '#F2EFFF', primary: '#0846ED', text: '#2B2A51', muted: '#585781', border: '#D8D4EC', danger: '#B41340' };
 
@@ -47,7 +46,7 @@ export default function EditarPerfilScreen({ navigation, route }) {
   if (loading) return <Loading text="Cargando perfil..." />;
   if (error) return <ErrorView error={error} onRetry={() => { setLoading(true); setError(null); load(); }} />;
   return <View style={styles.screen}>
-    <ScreenHeader navigation={navigation} route={route} title="Editar perfil" />
+    <View style={[styles.header, { paddingTop: insets.top + 10 }]}><TouchableOpacity onPress={() => goBackOrReturnTo(navigation, route)} style={styles.back}><MaterialIcons name="arrow-back" size={22} color={p.text} /></TouchableOpacity><Text style={styles.headerTitle}>Editar perfil</Text><View style={{ width: 36 }} /></View>
     <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
       <Field label="Nombre" value={form.nombre} onChangeText={(v) => setForm({ ...form, nombre: v })} />
       <Field label="Apellido" value={form.apellido} onChangeText={(v) => setForm({ ...form, apellido: v })} />
