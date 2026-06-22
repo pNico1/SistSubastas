@@ -22,10 +22,10 @@ export default function BidCard({ item, navigation }) {
         </View>
       )}
 
-      {item.live && (
-        <View style={styles.liveBadge}>
+      {(item.live || item.future) && (
+        <View style={[styles.liveBadge, item.future && styles.futureBadge]}>
           <Text style={styles.liveText}>
-            EN VIVO
+            {item.live ? 'EN VIVO' : 'PROXIMA'}
           </Text>
         </View>
       )}
@@ -95,6 +95,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 20,
+  },
+
+  futureBadge: {
+    backgroundColor: '#0846ED',
   },
 
   liveText: {

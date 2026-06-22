@@ -147,7 +147,13 @@ export default function SubastaDetailScreen({ route, navigation }) {
   const [subEstado, setSubEstado] = useState(null);
   const carouselRef = useRef(null);
   const cerradaRef = useRef(false);
+  const activeItemInitializedRef = useRef(false);
   const pendingVerification = user?.estado === 'pending_verification';
+
+  useEffect(() => {
+    activeItemInitializedRef.current = false;
+    cerradaRef.current = false;
+  }, [id]);
 
   // Item que se esta subastando ahora (motor temporal). Se refresca por polling.
   const fetchActivo = useCallback(async () => {
@@ -165,6 +171,19 @@ export default function SubastaDetailScreen({ route, navigation }) {
     return () => clearInterval(t);
   }, [fetchActivo, pendingVerification]);
 
+  const hydrateItems = useCallback(async (rawItems) => Promise.all((rawItems || []).map(async (item) => {
+    if (item.imagenUrl) return { ...item, image: item.imagenUrl };
+    const fotos = await subastasApi.getItemPhotos(id, item.itemId).catch(() => []);
+    return { ...item, image: firstPhotoUri(fotos) };
+  })), [id]);
+
+  const refreshItems = useCallback(async () => {
+    if (pendingVerification) return;
+    const its = await subastasApi.getItems(id);
+    const itemsConFotos = await hydrateItems(its);
+    setItems(itemsConFotos);
+  }, [hydrateItems, id, pendingVerification]);
+
   const load = useCallback(async () => {
     if (pendingVerification) return;
     setError(null);
@@ -174,11 +193,7 @@ export default function SubastaDetailScreen({ route, navigation }) {
         subastasApi.getItems(id),
         user ? clienteApi.misSubastas() : Promise.resolve([]),
       ]);
-      const itemsConFotos = await Promise.all((its || []).map(async (item) => {
-        if (item.imagenUrl) return { ...item, image: item.imagenUrl };
-        const fotos = await subastasApi.getItemPhotos(id, item.itemId).catch(() => []);
-        return { ...item, image: firstPhotoUri(fotos) };
-      }));
+      const itemsConFotos = await hydrateItems(its);
       setSubasta(s);
       setItems(itemsConFotos);
       setJoined((mis || []).some((m) => m.subastaId === id));
@@ -187,7 +202,7 @@ export default function SubastaDetailScreen({ route, navigation }) {
     } finally {
       setLoading(false);
     }
-  }, [id, pendingVerification, user]);
+  }, [hydrateItems, id, pendingVerification, user]);
 
   useEffect(() => { if (!pendingVerification) load(); }, [load, pendingVerification]);
 
@@ -198,6 +213,15 @@ export default function SubastaDetailScreen({ route, navigation }) {
       load();
     }
   }, [subEstado, load]);
+
+  useEffect(() => {
+    if (pendingVerification || loading) return;
+    if (!activeItemInitializedRef.current) {
+      activeItemInitializedRef.current = true;
+      return;
+    }
+    refreshItems().catch(() => {});
+  }, [activeItemId, loading, pendingVerification, refreshItems]);
 
   async function onJoin() {
     if (!user) {

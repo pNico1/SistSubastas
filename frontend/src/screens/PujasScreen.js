@@ -1,5 +1,5 @@
 // src/screens/PujasScreen.js
-// Explorador de subastas abiertas (datos reales de la API) con buscador y filtros.
+// Explorador de subastas activas y futuras con buscador y filtros.
 import React, { useCallback, useMemo, useState } from 'react';
 import {
   View,
@@ -23,9 +23,13 @@ import { firstPhotoUri } from '../utils/images';
 
 function shortFecha(fecha, hora) {
   if (!fecha) return hora || 'pronto';
-  const parts = String(fecha).split('-'); // [YYYY, MM, DD]
+  const parts = String(fecha).split('-');
   if (parts.length === 3) return `${parts[2]}/${parts[1]}`;
   return String(fecha);
+}
+
+function isFutureSubasta(subasta) {
+  return subasta?.estado == null && !!subasta.fecha;
 }
 
 async function resolveSubastaImage(subasta) {
@@ -53,15 +57,15 @@ export default function PujasScreen({ navigation }) {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(false);
   const [query, setQuery] = useState('');
-  const [categoria, setCategoria] = useState('Todos');
+  const [filtro, setFiltro] = useState('Todos');
 
   const load = useCallback(async () => {
     setError(false);
     try {
-      const res = await subastasApi.listar({ estado: 'abierta', pageSize: 50 });
-      const abiertas = res?.data || [];
+      const res = await subastasApi.listar({ pageSize: 50 });
+      const disponibles = (res?.data || []).filter((s) => s.estado === 'abierta' || isFutureSubasta(s));
       const conImagenes = await Promise.all(
-        abiertas.map(async (subasta) => {
+        disponibles.map(async (subasta) => {
           const imagenUrl = await resolveSubastaImage(subasta);
           return { ...subasta, imagenUrl };
         })
@@ -86,18 +90,22 @@ export default function PujasScreen({ navigation }) {
     load();
   };
 
-  // Chips de categoria construidos a partir de los datos reales.
   const filters = useMemo(() => {
     const cats = Array.from(
       new Set(subastas.map((s) => s.categoria).filter(Boolean))
     );
-    return ['Todos', ...cats];
+    return ['Todos', 'En Vivo', 'Proximas', ...cats];
   }, [subastas]);
 
   const data = useMemo(() => {
     const q = query.trim().toLowerCase();
     return subastas
-      .filter((s) => (categoria === 'Todos' ? true : s.categoria === categoria))
+      .filter((s) => {
+        if (filtro === 'Todos') return true;
+        if (filtro === 'En Vivo') return s.estado === 'abierta';
+        if (filtro === 'Proximas') return isFutureSubasta(s);
+        return s.categoria === filtro;
+      })
       .filter((s) => {
         if (!q) return true;
         return (
@@ -114,8 +122,9 @@ export default function PujasScreen({ navigation }) {
         timeLeft: shortFecha(s.fecha, s.hora),
         image: s.imagenUrl || null,
         live: s.estado === 'abierta',
+        future: isFutureSubasta(s),
       }));
-  }, [subastas, query, categoria]);
+  }, [subastas, query, filtro]);
 
   return (
     <View style={styles.container}>
@@ -126,14 +135,14 @@ export default function PujasScreen({ navigation }) {
         contentContainerStyle={[styles.content, { paddingTop: insets.top + 72 }]}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
-        <Text style={styles.title}>Subastas en vivo</Text>
+        <Text style={styles.title}>Explorar Subastas</Text>
         <Text style={styles.subtitle}>
-          Descubrí subastas activas y artículos exclusivos.
+          Descubri subastas activas, proximas fechas y articulos exclusivos.
         </Text>
 
         <SearchBar value={query} onChangeText={setQuery} />
 
-        <FilterChips filters={filters} active={categoria} onSelect={setCategoria} />
+        <FilterChips filters={filters} active={filtro} onSelect={setFiltro} />
 
         {loading ? (
           <View style={styles.center}>
@@ -142,13 +151,13 @@ export default function PujasScreen({ navigation }) {
         ) : error ? (
           <View style={styles.center}>
             <Text style={styles.emptyTitle}>No pudimos cargar las subastas</Text>
-            <Text style={styles.emptyText}>Deslizá para reintentar.</Text>
+            <Text style={styles.emptyText}>Desliza para reintentar.</Text>
           </View>
         ) : data.length === 0 ? (
           <View style={styles.center}>
             <Text style={styles.emptyTitle}>Sin resultados</Text>
             <Text style={styles.emptyText}>
-              No hay subastas abiertas que coincidan con tu búsqueda.
+              No hay subastas que coincidan con tu busqueda.
             </Text>
           </View>
         ) : (

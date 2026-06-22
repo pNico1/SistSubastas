@@ -89,6 +89,7 @@ public class PujaService {
         }
 
         Asistente asistente = asistenteRepo.findByClienteAndSubasta(clienteId, subastaId)
+                .filter(this::isAsistenciaActiva)
                 .orElseThrow(() -> ApiException.forbidden(ErrorCodes.NOT_PART_OF_SUBASTA,
                         "No estas unido a esta subasta"));
 
@@ -186,13 +187,16 @@ public class PujaService {
             throw ApiException.forbidden(ErrorCodes.NOT_ALLOWED,
                     "Tu categoria no permite acceder a esta subasta");
         }
-        if (asistenteRepo.findByClienteAndSubasta(clienteId, req.subastaId()).isPresent()) {
+        Asistente asistenciaExistente = asistenteRepo.findByClienteAndSubasta(clienteId, req.subastaId())
+                .orElse(null);
+        if (asistenciaExistente != null && isAsistenciaActiva(asistenciaExistente)) {
             throw ApiException.conflict(ErrorCodes.ALREADY_JOINED, "Ya estas unido a esta subasta");
         }
 
         // Un usuario no puede estar conectado a mas de una subasta abierta a la vez
         // (enunciado: "los usuarios no pueden estar conectados en mas de una a la vez").
         boolean enOtraAbierta = asistenteRepo.findByCliente(clienteId).stream()
+                .filter(this::isAsistenciaActiva)
                 .anyMatch(a -> !a.getSubasta().equals(req.subastaId())
                         && subastaRepo.findById(a.getSubasta())
                                 .map(s -> "abierta".equals(s.getEstado())).orElse(false));
@@ -201,12 +205,20 @@ public class PujaService {
                     "Ya estas conectado a otra subasta abierta; sali de ella antes de unirte a esta");
         }
 
-        int numeroPostor = asistenteRepo.findTopBySubastaOrderByNumeroPostorDesc(req.subastaId())
-                .map(a -> a.getNumeroPostor() + 1).orElse(1);
+        if (asistenciaExistente != null) {
+            asistenciaExistente.setNumeroPostor(Math.abs(asistenciaExistente.getNumeroPostor()));
+            asistenciaExistente = asistenteRepo.save(asistenciaExistente);
+            return new JoinResponse(asistenciaExistente.getIdentificador(), asistenciaExistente.getNumeroPostor());
+        }
 
         Asistente asistente = new Asistente();
         asistente.setCliente(clienteId);
         asistente.setSubasta(req.subastaId());
+        int numeroPostor = asistenteRepo.findBySubasta(req.subastaId()).stream()
+                .map(Asistente::getNumeroPostor)
+                .mapToInt(n -> Math.abs(n == null ? 0 : n))
+                .max()
+                .orElse(0) + 1;
         asistente.setNumeroPostor(numeroPostor);
         asistente = asistenteRepo.save(asistente);
 
@@ -219,21 +231,34 @@ public class PujaService {
         Integer clienteId = p.clienteId();
 
         Asistente target = asistenteRepo.findByCliente(clienteId).stream()
+                .filter(this::isAsistenciaActiva)
                 .filter(a -> subastaRepo.findById(a.getSubasta())
                         .map(s -> "abierta".equals(s.getEstado())).orElse(false))
                 .findFirst()
                 .orElseThrow(() -> ApiException.notFound(ErrorCodes.NOT_PART_OF_SUBASTA,
                         "No estas unido a ninguna subasta abierta"));
 
-        // solo se elimina la asistencia si no tiene pujas (las pujas son historico)
-        if (pujoRepo.findByAsistenteIn(List.of(target.getIdentificador())).isEmpty()) {
+        tiempoService.materializar(target.getSubasta());
+        List<Pujo> pujas = pujoRepo.findByAsistenteIn(List.of(target.getIdentificador()));
+        boolean tienePujasEnItemsNoVendidos = pujas.stream().anyMatch(this::esPujaDeItemNoVendido);
+        if (tienePujasEnItemsNoVendidos) {
+            throw ApiException.conflict(ErrorCodes.NOT_ALLOWED,
+                    "No podes salir mientras tengas pujas en lotes que todavia no finalizaron");
+        }
+
+        // Si no hay pujas, se borra. Si hay historial, se conserva y se marca como desconectado.
+        if (pujas.isEmpty()) {
             asistenteRepo.delete(target);
+        } else {
+            target.setNumeroPostor(-Math.abs(target.getNumeroPostor()));
+            asistenteRepo.save(target);
         }
     }
 
     public List<MySubastaDto> getMisSubastas() {
         AuthPrincipal p = CurrentUser.requireCliente();
         return asistenteRepo.findByCliente(p.clienteId()).stream()
+                .filter(this::isAsistenciaActiva)
                 .map(a -> new MySubastaDto(a.getSubasta(),
                         subastaRepo.findById(a.getSubasta()).map(Subasta::getEstado).orElse(null)))
                 .toList();
@@ -270,6 +295,16 @@ public class PujaService {
 
     private boolean matchesProducto(Integer itemId, Integer productoId) {
         return itemRepo.findById(itemId).map(i -> productoId.equals(i.getProducto())).orElse(false);
+    }
+
+    private boolean isAsistenciaActiva(Asistente asistente) {
+        return asistente.getNumeroPostor() != null && asistente.getNumeroPostor() > 0;
+    }
+
+    private boolean esPujaDeItemNoVendido(Pujo pujo) {
+        return itemRepo.findById(pujo.getItem())
+                .map(item -> !"si".equals(item.getSubastado()))
+                .orElse(true);
     }
 
     private void requireActiveAccount(AuthPrincipal principal) {

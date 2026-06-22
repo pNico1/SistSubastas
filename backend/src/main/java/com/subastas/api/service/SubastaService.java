@@ -84,6 +84,7 @@ public class SubastaService {
 
     public List<SubastaItemDto> getItems(Integer subastaId) {
         findSubasta(subastaId);
+        tiempoService.materializar(subastaId);
         Catalogo c = catalogoRepo.findBySubasta(subastaId).orElse(null);
         if (c == null) return List.of();
         return itemRepo.findByCatalogo(c.getIdentificador()).stream()
