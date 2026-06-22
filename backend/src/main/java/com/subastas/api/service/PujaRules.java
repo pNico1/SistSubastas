@@ -1,6 +1,7 @@
 package com.subastas.api.service;
 
 import java.math.BigDecimal;
+import java.util.Locale;
 import java.util.Map;
 
 /**
@@ -18,13 +19,14 @@ public final class PujaRules {
             "comun", 1, "especial", 2, "plata", 3, "oro", 4, "platino", 5);
 
     public static boolean sinLimites(String categoria) {
-        return "oro".equalsIgnoreCase(categoria) || "platino".equalsIgnoreCase(categoria);
+        String normalizada = normalizarCategoria(categoria);
+        return "oro".equals(normalizada) || "platino".equals(normalizada);
     }
 
     /** true si un cliente de categoria propia puede acceder a una subasta de la categoria dada. */
     public static boolean puedeAcceder(String categoriaSubasta, String categoriaCliente) {
-        int s = RANK.getOrDefault(categoriaSubasta == null ? "" : categoriaSubasta.toLowerCase(), 99);
-        int c = RANK.getOrDefault(categoriaCliente == null ? "" : categoriaCliente.toLowerCase(), -1);
+        int s = RANK.getOrDefault(normalizarCategoria(categoriaSubasta), 99);
+        int c = RANK.getOrDefault(normalizarCategoria(categoriaCliente), -1);
         return s <= c;
     }
 
@@ -47,5 +49,9 @@ public final class PujaRules {
         BigDecimal unoPorCiento = precioBase.multiply(new BigDecimal("0.01"));
         BigDecimal veintePorCiento = precioBase.multiply(new BigDecimal("0.20"));
         return new Limites(base.add(unoPorCiento), base.add(veintePorCiento));
+    }
+
+    private static String normalizarCategoria(String categoria) {
+        return categoria == null ? "" : categoria.trim().toLowerCase(Locale.ROOT);
     }
 }
