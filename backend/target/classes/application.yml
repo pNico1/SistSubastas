@@ -29,6 +29,7 @@ spring:
     multipart:
       max-file-size: 10MB
       max-request-size: 12MB
+
 app:
   inspeccion:
     direccion: ${INSPECTION_ADDRESS:Av. del Puerto 1450, Depósito 3, CABA}

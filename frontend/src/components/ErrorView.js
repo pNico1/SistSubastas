@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import { MaterialIcons } from '@expo/vector-icons';
 import Button from './Button';
 import { colors, spacing } from '../theme';
 
@@ -7,10 +8,17 @@ import { colors, spacing } from '../theme';
 export default function ErrorView({ error, onRetry }) {
   const msg = typeof error === 'string' ? error : error?.message || 'Ocurrio un error';
   const isNetwork = error?.isNetwork;
+  const isServer = error?.status >= 500 || error?.code === 'SERVER_UNREACHABLE';
+  const icon = isNetwork ? 'wifi-off' : isServer ? 'dns' : 'error-outline';
+  const title = isNetwork
+    ? 'Sin conexion'
+    : isServer
+      ? 'Servidor no disponible'
+      : 'Ups...';
   return (
     <View style={styles.container}>
-      <Text style={styles.icon}>{isNetwork ? '📡' : '⚠️'}</Text>
-      <Text style={styles.title}>{isNetwork ? 'Sin conexion' : 'Ups...'}</Text>
+      <MaterialIcons name={icon} size={40} color={isNetwork || isServer ? colors.danger : colors.textMuted} />
+      <Text style={styles.title}>{title}</Text>
       <Text style={styles.msg}>{msg}</Text>
       {onRetry && (
         <View style={styles.btn}>
@@ -23,7 +31,6 @@ export default function ErrorView({ error, onRetry }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.lg },
-  icon: { fontSize: 40, marginBottom: spacing.sm },
   title: { fontSize: 18, fontWeight: '700', color: colors.text, marginBottom: spacing.xs },
   msg: { color: colors.textMuted, textAlign: 'center', marginBottom: spacing.md },
   btn: { width: 180 },

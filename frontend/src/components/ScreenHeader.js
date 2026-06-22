@@ -5,17 +5,30 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { clienteApi } from '../api/endpoints';
 import { goBackOrReturnTo, navigateWithReturnTo } from '../navigationUtils';
+import { NOTIFICATIONS_POLL_MS } from '../config';
 
 const p = { bg: '#F9F5FF', primary: '#0846ED', field: '#DCD9FF', border: 'rgba(171,169,215,.3)', danger: '#B41340', text: '#2B2A51', white: '#FFF' };
 
 export default function ScreenHeader({ navigation, route, title, showBack = true, showNotifications = true, onBackPress }) {
   const insets = useSafeAreaInsets();
   const [unread, setUnread] = useState(0);
+
+  const loadUnread = useCallback(() => {
+    if (!showNotifications) {
+      setUnread(0);
+      return;
+    }
+    clienteApi.notificaciones()
+      .then((data) => setUnread((data || []).filter((n) => !n.leido).length))
+      .catch(() => {});
+  }, [showNotifications]);
+
   useFocusEffect(useCallback(() => {
+    loadUnread();
     if (!showNotifications) return undefined;
-    clienteApi.notificaciones().then((data) => setUnread((data || []).filter((n) => !n.leido).length)).catch(() => setUnread(0));
-    return undefined;
-  }, [showNotifications]));
+    const t = setInterval(loadUnread, NOTIFICATIONS_POLL_MS);
+    return () => clearInterval(t);
+  }, [loadUnread, showNotifications]));
   const back = () => onBackPress ? onBackPress() : goBackOrReturnTo(navigation, route);
   return <View style={[styles.container, { paddingTop: insets.top }]}><View style={styles.inner}>
     {showBack ? <TouchableOpacity style={styles.icon} onPress={back} hitSlop={10}><MaterialIcons name="arrow-back" size={22} color={p.primary} /></TouchableOpacity> : <Text style={styles.brand}>BIDSTER</Text>}

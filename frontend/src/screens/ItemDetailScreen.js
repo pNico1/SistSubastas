@@ -6,7 +6,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialIcons } from '@expo/vector-icons';
-import { subastasApi, clienteApi } from '../api/endpoints';
+import { subastasApi, clienteApi, productosPublicosApi } from '../api/endpoints';
 import { POLLING_MS } from '../config';
 import { useAuth } from '../context/AuthContext';
 import Loading from '../components/Loading';
@@ -35,7 +35,7 @@ const p = {
 export default function ItemDetailScreen({ route, navigation }) {
   const { user } = useAuth();
   const insets = useSafeAreaInsets();
-  const { subastaId, itemId, nombre } = route.params;
+  const { subastaId, itemId, productoId, nombre } = route.params;
   // El flag 'joined' que llega por params puede estar desactualizado (ej: te uniste
   // en otra pantalla). Se usa como valor inicial y se revalida contra el backend.
   const [joined, setJoined] = useState(route.params.joined ?? false);
@@ -48,6 +48,7 @@ export default function ItemDetailScreen({ route, navigation }) {
   const [fotos, setFotos] = useState([]);
   const [itemActivoId, setItemActivoId] = useState(null);
   const [subEstado, setSubEstado] = useState(null);
+  const [productoDetalle, setProductoDetalle] = useState(null);
   const [segundos, setSegundos] = useState(null);
   const [ventana, setVentana] = useState(30);
   const importeTocado = useRef(false);
@@ -81,6 +82,22 @@ export default function ItemDetailScreen({ route, navigation }) {
       .then((data) => setFotos(data || []))
       .catch(() => setFotos([]));
   }, [subastaId, itemId]);
+
+  useEffect(() => {
+    if (productoId == null) {
+      setProductoDetalle(null);
+      return undefined;
+    }
+    let alive = true;
+    productosPublicosApi.getById(productoId)
+      .then((data) => {
+        if (alive) setProductoDetalle(data);
+      })
+      .catch(() => {
+        if (alive) setProductoDetalle(null);
+      });
+    return () => { alive = false; };
+  }, [productoId]);
 
   // Revalida la union real contra el backend, por si el param venia desactualizado.
   useEffect(() => {
@@ -142,7 +159,6 @@ export default function ItemDetailScreen({ route, navigation }) {
     setSubmitting(true);
     try {
       await subastasApi.pujar(subastaId, itemId, parseFloat(importe));
-      Alert.alert('Puja realizada', `Ofertaste ${importe}. Quedás como mejor postor.`);
       importeTocado.current = false;
       await fetchOferta();
       await fetchItemActivo();
@@ -174,6 +190,9 @@ export default function ItemDetailScreen({ route, navigation }) {
   const barColor = segundos != null && segundos <= 5 ? p.danger
     : segundos != null && segundos <= 10 ? p.warning
     : p.success;
+  const descripcion = productoDetalle?.descripcionCompleta
+    || productoDetalle?.historia
+    || productoDetalle?.descripcionCatalogo;
 
   return (
     <View style={{ flex: 1, backgroundColor: p.background }}>
@@ -197,6 +216,22 @@ export default function ItemDetailScreen({ route, navigation }) {
             return uri ? <Image key={foto.id} source={{ uri }} style={styles.galleryImage} /> : null;
           })}
         </ScrollView>
+      ) : null}
+
+      {descripcion ? (
+        <View style={styles.descriptionCard}>
+          <View style={styles.descriptionHeader}>
+            <MaterialIcons name="description" size={16} color={p.primary} />
+            <Text style={styles.descriptionLabel}>DESCRIPCIÓN</Text>
+          </View>
+          <Text style={styles.descriptionText}>{descripcion}</Text>
+          {productoDetalle?.nombreArtista ? (
+            <Text style={styles.descriptionMeta}>Artista / autor: {productoDetalle.nombreArtista}</Text>
+          ) : null}
+          {productoDetalle?.fechaObra ? (
+            <Text style={styles.descriptionMeta}>Fecha de obra: {productoDetalle.fechaObra}</Text>
+          ) : null}
+        </View>
       ) : null}
 
       {!user ? (
@@ -366,6 +401,18 @@ const styles = StyleSheet.create({
   },
   lotBadgeText: { fontSize: 11, fontWeight: '800', color: p.text, letterSpacing: 1 },
   title: { fontSize: 28, fontWeight: '900', color: p.text, lineHeight: 32, letterSpacing: -0.3 },
+  descriptionCard: {
+    backgroundColor: p.surface,
+    borderRadius: 14,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: p.border,
+  },
+  descriptionHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 },
+  descriptionLabel: { fontSize: 10, fontWeight: '900', color: p.muted, letterSpacing: 1.5 },
+  descriptionText: { color: p.text, fontSize: 14, lineHeight: 21, fontWeight: '600' },
+  descriptionMeta: { color: p.muted, fontSize: 12, lineHeight: 18, fontWeight: '700', marginTop: 8 },
 
   // Base
   baseCard: {

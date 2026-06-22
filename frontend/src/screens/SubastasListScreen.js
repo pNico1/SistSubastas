@@ -1,11 +1,21 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Alert, View, Text, FlatList, TouchableOpacity, StyleSheet, RefreshControl } from 'react-native';
+import {
+  Alert,
+  View,
+  Text,
+  FlatList,
+  TouchableOpacity,
+  StyleSheet,
+  RefreshControl,
+  ImageBackground,
+} from 'react-native';
+import { MaterialIcons } from '@expo/vector-icons';
 import { subastasApi } from '../api/endpoints';
 import { useAuth } from '../context/AuthContext';
 import Loading from '../components/Loading';
 import ErrorView from '../components/ErrorView';
 import { colors, radius, spacing } from '../theme';
-import { navigateWithReturnTo } from '../navigationUtils'; // FIX: import agregado
+import { navigateWithReturnTo } from '../navigationUtils';
 
 export default function SubastasListScreen({ navigation }) {
   const { user } = useAuth();
@@ -40,7 +50,6 @@ export default function SubastasListScreen({ navigation }) {
       );
       return;
     }
-    // FIX: reemplazado navigation.navigate por navigateWithReturnTo para propagar returnTo
     navigateWithReturnTo(navigation, 'SubastaDetail', { id });
   }
 
@@ -71,17 +80,29 @@ export default function SubastasListScreen({ navigation }) {
           onPress={() => openSubasta(item.id)}
           activeOpacity={0.85}
         >
-          <View style={styles.cardHeader}>
-            <Text style={styles.cardTitle}>Subasta #{item.id}</Text>
-            <View style={[styles.badge, { backgroundColor: colors.accent }]}>
-              <Text style={styles.badgeText}>{item.categoria}</Text>
-            </View>
+          <View style={styles.cardImageWrap}>
+            {item.imagenUrl ? (
+              <ImageBackground source={{ uri: item.imagenUrl }} style={styles.cardImage} resizeMode="cover" />
+            ) : (
+              <View style={[styles.cardImage, styles.cardImageFallback]}>
+                <MaterialIcons name="image" size={40} color="rgba(8,70,237,0.25)" />
+              </View>
+            )}
           </View>
-          <Text style={styles.cardLine}>📅 {item.fecha} · {item.hora}</Text>
-          <Text style={styles.cardLine}>📍 {item.ubicacion}</Text>
-          <View style={styles.cardFooter}>
-            <Text style={styles.cardMeta}>{item.cantidadItems} items · {item.moneda}</Text>
-            <Text style={styles.estado}>{item.estado}</Text>
+
+          <View style={styles.cardBody}>
+            <View style={styles.cardHeader}>
+              <Text style={styles.cardTitle}>Subasta #{item.id}</Text>
+              <View style={[styles.badge, { backgroundColor: colors.accent }]}>
+                <Text style={styles.badgeText}>{item.categoria}</Text>
+              </View>
+            </View>
+            <Text style={styles.cardLine}>Fecha: {item.fecha} - {item.hora}</Text>
+            <Text style={styles.cardLine}>Ubicacion: {item.ubicacion}</Text>
+            <View style={styles.cardFooter}>
+              <Text style={styles.cardMeta}>{item.cantidadItems} items - {item.moneda}</Text>
+              <Text style={styles.estado}>{item.estado}</Text>
+            </View>
           </View>
         </TouchableOpacity>
       )}
@@ -105,11 +126,15 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: colors.surface,
     borderRadius: radius.md,
-    padding: spacing.md,
     marginBottom: spacing.md,
     borderWidth: 1,
     borderColor: colors.border,
+    overflow: 'hidden',
   },
+  cardImageWrap: { height: 150, backgroundColor: '#E2DFFF' },
+  cardImage: { width: '100%', height: '100%' },
+  cardImageFallback: { alignItems: 'center', justifyContent: 'center' },
+  cardBody: { padding: spacing.md },
   cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   cardTitle: { fontSize: 18, fontWeight: '700', color: colors.text },
   badge: { paddingHorizontal: spacing.sm, paddingVertical: 2, borderRadius: radius.sm },

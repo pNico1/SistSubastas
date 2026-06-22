@@ -6,6 +6,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { clienteApi } from '../api/endpoints';
 import { navigateWithReturnTo } from '../navigationUtils';
 import { useAuth } from '../context/AuthContext';
+import { NOTIFICATIONS_POLL_MS } from '../config';
 
 const palette = {
   background: '#F9F5FF',
@@ -54,6 +55,8 @@ export default function TopAppBar({ navigation }) {
   useFocusEffect(
     useCallback(() => {
       cargarNotificaciones();
+      const t = setInterval(cargarNotificaciones, NOTIFICATIONS_POLL_MS);
+      return () => clearInterval(t);
     }, [cargarNotificaciones])
   );
 

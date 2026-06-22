@@ -29,16 +29,16 @@ public class NotificacionService {
     public List<NotificacionDto> listar() {
         AuthPrincipal p = CurrentUser.requireCliente();
         sincronizarEstadosProductos(p.personaId());
-        return repo.findByClienteOrderByFechaDesc(p.clienteId()).stream()
+        return repo.findByClienteOrderByFechaDesc(p.personaId()).stream()
                 .map(n -> new NotificacionDto(n.getId(), n.getTipo(), n.getMensaje(),
                         "si".equals(n.getLeido()), n.getFecha()))
                 .toList();
     }
 
-    public void crearParaCliente(Integer cliente, String tipo, String mensaje) {
-        if (repo.existsByClienteAndTipo(cliente, tipo)) return;
+    public void crearParaCliente(Integer persona, String tipo, String mensaje) {
+        if (repo.existsByClienteAndTipo(persona, tipo)) return;
         Notificacion n = new Notificacion();
-        n.setCliente(cliente);
+        n.setCliente(persona);
         n.setTipo(tipo);
         n.setMensaje(mensaje);
         n.setLeido("no");
@@ -63,7 +63,7 @@ public class NotificacionService {
         AuthPrincipal p = CurrentUser.requireCliente();
         Notificacion n = repo.findById(id)
                 .orElseThrow(() -> ApiException.notFound(ErrorCodes.NOT_FOUND, "Notificacion no encontrada"));
-        if (!n.getCliente().equals(p.clienteId())) {
+        if (!n.getCliente().equals(p.personaId())) {
             throw ApiException.forbidden(ErrorCodes.FORBIDDEN, "No es tu notificacion");
         }
         n.setLeido("si");

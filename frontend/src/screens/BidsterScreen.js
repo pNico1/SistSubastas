@@ -16,6 +16,7 @@ import AuctionSlide from '../components/AuctionSlide';
 import TopAppBar from '../components/TopAppBar';
 import BottomNavBar from '../components/BottomNavBar';
 import { subastasApi, clienteApi } from '../api/endpoints';
+import { firstPhotoUri } from '../utils/images';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -28,12 +29,6 @@ function formatMoney(moneda, val) {
   const n = Number(val);
   const formatted = isNaN(n) ? String(val) : n.toLocaleString('es-AR');
   return `${moneda ? moneda + ' ' : ''}${formatted}`;
-}
-
-function firstPhotoUri(fotos) {
-  const foto = (fotos || [])[0];
-  if (foto?.contenidoBase64) return `data:image/jpeg;base64,${foto.contenidoBase64}`;
-  return foto?.url || null;
 }
 
 export default function BidsterScreen({ navigation }) {
@@ -75,7 +70,7 @@ export default function BidsterScreen({ navigation }) {
         pares.map(async ({ s, it }) => {
           const [of, fotos] = await Promise.all([
             subastasApi.getOfertaActual(s.id, it.itemId).catch(() => null),
-            subastasApi.getItemPhotos(s.id, it.itemId).catch(() => []),
+            it.imagenUrl ? Promise.resolve([]) : subastasApi.getItemPhotos(s.id, it.itemId).catch(() => []),
           ]);
           return { s, it, of, fotos };
         })
@@ -85,12 +80,13 @@ export default function BidsterScreen({ navigation }) {
         key: `${s.id}-${it.itemId}`,
         subastaId: s.id,
         itemId: it.itemId,
+        productoId: it.productoId,
         title: it.producto || `Item ${it.itemId}`,
         subtitle: `Subasta #${s.id} · ${s.categoria || ''}`.trim(),
         currentBid: formatMoney(s.moneda, of?.ofertaActual ?? of?.precioBase ?? it.precioBase),
         lot: `#${it.itemId}`,
         endsIn: `${s.fecha || ''} ${s.hora || ''}`.trim() || 'pronto',
-        image: firstPhotoUri(fotos),
+        image: it.imagenUrl || firstPhotoUri(fotos),
         joined: joinedIds.has(s.id),
       }));
 

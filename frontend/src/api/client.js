@@ -1,4 +1,5 @@
 import axios from 'axios';
+import NetInfo from '@react-native-community/netinfo';
 import { BASE_URL } from '../config';
 
 // Instancia central de axios.
@@ -28,11 +29,49 @@ client.interceptors.request.use((config) => {
   return config;
 });
 
+async function networkFailure(error) {
+  if (error.code === 'ECONNABORTED') {
+    return {
+      status: 0,
+      code: 'TIMEOUT',
+      message: 'La conexion tardo demasiado. Revisa tu internet e intenta de nuevo.',
+      isNetwork: true,
+      retryable: true,
+    };
+  }
+
+  let offline = false;
+  try {
+    const state = await NetInfo.fetch();
+    offline = state.isConnected === false || state.isInternetReachable === false;
+  } catch {
+    offline = false;
+  }
+
+  if (offline) {
+    return {
+      status: 0,
+      code: 'OFFLINE',
+      message: 'No hay conexion a internet. Conectate a una red e intenta nuevamente.',
+      isNetwork: true,
+      retryable: true,
+    };
+  }
+
+  return {
+    status: 0,
+    code: 'SERVER_UNREACHABLE',
+    message: 'No pudimos conectar con el servidor. Puede estar caido o tardando en iniciar.',
+    isNetwork: true,
+    retryable: true,
+  };
+}
+
 // Normaliza TODOS los errores a la forma { code, message, status, isNetwork }
 // para que las pantallas muestren alertas claras (requisito de manejo de errores).
 client.interceptors.response.use(
   (response) => response,
-  (error) => {
+  async (error) => {
     if (error.response) {
       const data = error.response.data || {};
       // 401 en una llamada autenticada (no en /api/auth/*) => sesion vencida.
@@ -44,26 +83,15 @@ client.interceptors.response.use(
       return Promise.reject({
         status: error.response.status,
         code: data.code || 'ERROR',
-        message: data.message || 'Ocurrio un error',
+        message: data.message || (error.response.status >= 500
+          ? 'El servidor tuvo un problema. Intenta de nuevo en unos segundos.'
+          : 'Ocurrio un error'),
         fields: data.fields || null,
         isNetwork: false,
+        retryable: error.response.status >= 500,
       });
     }
-    if (error.code === 'ECONNABORTED') {
-      return Promise.reject({
-        status: 0,
-        code: 'TIMEOUT',
-        message: 'La conexion tardo demasiado. Intenta de nuevo.',
-        isNetwork: true,
-      });
-    }
-    // sin respuesta del servidor -> problema de red / servidor caido
-    return Promise.reject({
-      status: 0,
-      code: 'NETWORK_ERROR',
-      message: 'Sin conexion con el servidor. Revisa tu internet o el BASE_URL.',
-      isNetwork: true,
-    });
+    return Promise.reject(await networkFailure(error));
   }
 );
 

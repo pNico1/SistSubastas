@@ -316,6 +316,8 @@ CREATE TABLE mediosPago (
 );
 
 -- notificaciones
+-- La columna se conserva como 'cliente' por compatibilidad con el codigo,
+-- pero referencia personas: tambien se notifican duenios/vendedores.
 CREATE TABLE notificaciones (
     id       INT          NOT NULL AUTO_INCREMENT,
     cliente  INT          NOT NULL,
@@ -324,7 +326,7 @@ CREATE TABLE notificaciones (
     leido    VARCHAR(2)   NOT NULL DEFAULT 'no' CHECK (leido IN ('si','no')),
     fecha    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT pk_notificaciones PRIMARY KEY (id),
-    CONSTRAINT fk_notificaciones_clientes FOREIGN KEY (cliente) REFERENCES clientes (identificador)
+    CONSTRAINT fk_notificaciones_personas FOREIGN KEY (cliente) REFERENCES personas (identificador)
 );
 
 -- revisiones: ciclo de inspeccion de un producto.

@@ -7,16 +7,20 @@ import {
   TouchableOpacity,
   Dimensions,
 } from 'react-native';
+import { MaterialIcons } from '@expo/vector-icons';
 
 const { width } = Dimensions.get('window');
 
 export default function BidCard({ item, navigation }) {
   return (
     <View style={styles.card}>
-      <Image
-        source={{ uri: item.image }}
-        style={styles.image}
-      />
+      {item.image ? (
+        <Image source={{ uri: item.image }} style={styles.image} />
+      ) : (
+        <View style={[styles.image, styles.imageFallback]}>
+          <MaterialIcons name="image" size={44} color="rgba(8,70,237,0.25)" />
+        </View>
+      )}
 
       {item.live && (
         <View style={styles.liveBadge}>
@@ -76,6 +80,11 @@ const styles = StyleSheet.create({
     width: '100%',
     height: 220,
     backgroundColor: '#E2DFFF',
+  },
+
+  imageFallback: {
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 
   liveBadge: {

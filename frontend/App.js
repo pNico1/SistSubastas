@@ -59,6 +59,7 @@ import BidsterScreen from './src/screens/BidsterScreen';
 import PujasScreen from './src/screens/PujasScreen';
 import { navigationRef } from './src/navigationRef';
 import { goBackOrReturnTo, navigateWithReturnTo } from './src/navigationUtils';
+import NetworkBanner from './src/components/NetworkBanner';
 
 const Stack = createNativeStackNavigator();
 
@@ -244,6 +245,7 @@ export default function App() {
       <AuthProvider>
         <StatusBar style="light" />
         <RootNavigator />
+        <NetworkBanner />
       </AuthProvider>
     </SafeAreaProvider>
   );

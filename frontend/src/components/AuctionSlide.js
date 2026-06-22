@@ -63,6 +63,7 @@ export default function AuctionSlide({ item, navigation }) {
     navigation.navigate('ItemDetail', {
       subastaId: item.subastaId,
       itemId: item.itemId,
+      productoId: item.productoId,
       nombre: item.title,
       joined: item.joined,
     });

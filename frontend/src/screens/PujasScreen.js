@@ -19,12 +19,31 @@ import SearchBar from '../components/SearchBar';
 import FilterChips from '../components/FilterChips';
 import BidCard from '../components/BidCard';
 import { subastasApi } from '../api/endpoints';
+import { firstPhotoUri } from '../utils/images';
 
 function shortFecha(fecha, hora) {
   if (!fecha) return hora || 'pronto';
   const parts = String(fecha).split('-'); // [YYYY, MM, DD]
   if (parts.length === 3) return `${parts[2]}/${parts[1]}`;
   return String(fecha);
+}
+
+async function resolveSubastaImage(subasta) {
+  if (subasta.imagenUrl) return subasta.imagenUrl;
+
+  const items = await subastasApi.getItems(subasta.id).catch(() => []);
+  const itemConImagen = (items || []).find((item) => item.imagenUrl);
+  if (itemConImagen?.imagenUrl) return itemConImagen.imagenUrl;
+
+  for (const item of items || []) {
+    const fotos = await subastasApi
+      .getItemPhotos(subasta.id, item.itemId)
+      .catch(() => []);
+    const uri = firstPhotoUri(fotos);
+    if (uri) return uri;
+  }
+
+  return null;
 }
 
 export default function PujasScreen({ navigation }) {
@@ -40,7 +59,14 @@ export default function PujasScreen({ navigation }) {
     setError(false);
     try {
       const res = await subastasApi.listar({ estado: 'abierta', pageSize: 50 });
-      setSubastas(res?.data || []);
+      const abiertas = res?.data || [];
+      const conImagenes = await Promise.all(
+        abiertas.map(async (subasta) => {
+          const imagenUrl = await resolveSubastaImage(subasta);
+          return { ...subasta, imagenUrl };
+        })
+      );
+      setSubastas(conImagenes);
     } catch (err) {
       setError(true);
     } finally {
@@ -86,7 +112,7 @@ export default function PujasScreen({ navigation }) {
         category: s.categoria || 'General',
         lots: s.cantidadItems ?? 0,
         timeLeft: shortFecha(s.fecha, s.hora),
-        image: `https://picsum.photos/seed/subasta${s.id}/600/400`,
+        image: s.imagenUrl || null,
         live: s.estado === 'abierta',
       }));
   }, [subastas, query, categoria]);

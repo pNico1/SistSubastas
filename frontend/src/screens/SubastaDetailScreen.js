@@ -14,6 +14,7 @@ import Button from '../components/Button';
 import { navigateWithReturnTo } from '../navigationUtils';
 import { POLLING_MS } from '../config';
 import ScreenHeader from '../components/ScreenHeader';
+import { firstPhotoUri } from '../utils/images';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 const CARD_W = SCREEN_W * 0.82;
@@ -48,12 +49,6 @@ const PLACEHOLDER_GRADIENTS = [
 ];
 
 const PLACEHOLDER_ICONS = ['gavel', 'diamond', 'star', 'auto-awesome', 'workspace-premium'];
-
-function firstPhotoUri(fotos) {
-  const foto = (fotos || [])[0];
-  if (foto?.contenidoBase64) return `data:image/jpeg;base64,${foto.contenidoBase64}`;
-  return foto?.url || null;
-}
 
 function LotCard({ item, index, subasta, joined, activeItemId, subEstado, onPress, canSeePrices }) {
   const gradientColors = PLACEHOLDER_GRADIENTS[index % PLACEHOLDER_GRADIENTS.length];
@@ -180,6 +175,7 @@ export default function SubastaDetailScreen({ route, navigation }) {
         user ? clienteApi.misSubastas() : Promise.resolve([]),
       ]);
       const itemsConFotos = await Promise.all((its || []).map(async (item) => {
+        if (item.imagenUrl) return { ...item, image: item.imagenUrl };
         const fotos = await subastasApi.getItemPhotos(id, item.itemId).catch(() => []);
         return { ...item, image: firstPhotoUri(fotos) };
       }));
@@ -348,6 +344,7 @@ export default function SubastaDetailScreen({ route, navigation }) {
               navigateWithReturnTo(navigation, 'ItemDetail', {
                 subastaId: id,
                 itemId: item.itemId,
+                productoId: item.productoId,
                 nombre: item.producto,
                 joined,
               })

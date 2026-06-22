@@ -8,6 +8,7 @@ import { clienteApi } from '../api/endpoints';
 import Loading from '../components/Loading';
 import ErrorView from '../components/ErrorView';
 import { goBackOrReturnTo } from '../navigationUtils';
+import { NOTIFICATIONS_POLL_MS } from '../config';
 
 const p = {
   background:   '#F9F5FF',
@@ -110,6 +111,8 @@ export default function NotificacionesScreen({ navigation, route }) {
   useFocusEffect(
     useCallback(() => {
       load();
+      const t = setInterval(load, NOTIFICATIONS_POLL_MS);
+      return () => clearInterval(t);
     }, [load])
   );
 
