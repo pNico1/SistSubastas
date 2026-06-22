@@ -2,13 +2,18 @@ package com.subastas.api.service;
 
 import com.subastas.api.common.ApiException;
 import com.subastas.api.common.ErrorCodes;
+import com.subastas.api.domain.Catalogo;
 import com.subastas.api.domain.Cliente;
 import com.subastas.api.domain.Duenio;
 import com.subastas.api.domain.Empleado;
 import com.subastas.api.domain.Foto;
+import com.subastas.api.domain.ItemCatalogo;
+import com.subastas.api.domain.Persona;
 import com.subastas.api.domain.Producto;
 import com.subastas.api.domain.Devolucion;
+import com.subastas.api.domain.ProductoOfertaDatos;
 import com.subastas.api.domain.Revision;
+import com.subastas.api.domain.Subasta;
 import com.subastas.api.dto.CreateProductoRequest;
 import com.subastas.api.dto.DevolucionResponse;
 import com.subastas.api.dto.EnvioInspeccionResponse;
@@ -18,13 +23,18 @@ import com.subastas.api.dto.ProductoDto;
 import com.subastas.api.dto.RejectMotiveResponse;
 import com.subastas.api.dto.TerminosRequest;
 import com.subastas.api.dto.TerminosResponse;
+import com.subastas.api.repository.CatalogoRepository;
 import com.subastas.api.repository.ClienteRepository;
 import com.subastas.api.repository.DevolucionRepository;
 import com.subastas.api.repository.DuenioRepository;
 import com.subastas.api.repository.EmpleadoRepository;
 import com.subastas.api.repository.FotoRepository;
+import com.subastas.api.repository.ItemCatalogoRepository;
+import com.subastas.api.repository.PersonaRepository;
+import com.subastas.api.repository.ProductoOfertaDatosRepository;
 import com.subastas.api.repository.ProductoRepository;
 import com.subastas.api.repository.RevisionRepository;
+import com.subastas.api.repository.SubastaRepository;
 import com.subastas.api.security.AuthPrincipal;
 import com.subastas.api.security.CurrentUser;
 import org.springframework.http.HttpStatus;
@@ -32,10 +42,16 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.Base64;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Locale;
+import java.util.Objects;
 
 /** Productos que el usuario (como dueño) entrego para subastar. */
 @Service
@@ -46,6 +62,8 @@ public class ProductoDuenioService {
     private static final int MAX_FOTOS = 8;
     private static final long MAX_FOTO_BYTES = 5L * 1024 * 1024;    // 5 MB por foto
     private static final long MAX_TOTAL_BYTES = 15L * 1024 * 1024;  // 15 MB en total
+    private static final BigDecimal MIN_PRECIO_BASE = new BigDecimal("0.02");
+    private static final BigDecimal COMISION_COLECCION = new BigDecimal("0.10");
 
     private final ProductoRepository productoRepo;
     private final FotoRepository fotoRepo;
@@ -54,6 +72,11 @@ public class ProductoDuenioService {
     private final EmpleadoRepository empleadoRepo;
     private final RevisionRepository revisionRepo;
     private final DevolucionRepository devolucionRepo;
+    private final ProductoOfertaDatosRepository ofertaRepo;
+    private final PersonaRepository personaRepo;
+    private final SubastaRepository subastaRepo;
+    private final CatalogoRepository catalogoRepo;
+    private final ItemCatalogoRepository itemRepo;
     private final ProductoConsultaService consultaService;
     private final NotificacionService notificacionService;
     private final SeguroService seguroService;
@@ -62,10 +85,19 @@ public class ProductoDuenioService {
     @Value("${app.inspeccion.direccion:Av. del Puerto 1450, Depósito 3, CABA}")
     private String direccionInspeccion;
 
+    @Value("${app.colecciones.umbral-productos:3}")
+    private int umbralColeccion;
+
+    @Value("${app.colecciones.dias-anticipacion:14}")
+    private int diasAnticipacionColeccion;
+
     public ProductoDuenioService(ProductoRepository productoRepo, FotoRepository fotoRepo,
                                  DuenioRepository duenioRepo, ClienteRepository clienteRepo,
                                  EmpleadoRepository empleadoRepo, RevisionRepository revisionRepo,
-                                 DevolucionRepository devolucionRepo, ProductoConsultaService consultaService,
+                                 DevolucionRepository devolucionRepo, ProductoOfertaDatosRepository ofertaRepo,
+                                 PersonaRepository personaRepo, SubastaRepository subastaRepo,
+                                 CatalogoRepository catalogoRepo, ItemCatalogoRepository itemRepo,
+                                 ProductoConsultaService consultaService,
                                  NotificacionService notificacionService, SeguroService seguroService,
                                  CuentaCobroService cuentaCobroService) {
         this.productoRepo = productoRepo;
@@ -75,6 +107,11 @@ public class ProductoDuenioService {
         this.empleadoRepo = empleadoRepo;
         this.revisionRepo = revisionRepo;
         this.devolucionRepo = devolucionRepo;
+        this.ofertaRepo = ofertaRepo;
+        this.personaRepo = personaRepo;
+        this.subastaRepo = subastaRepo;
+        this.catalogoRepo = catalogoRepo;
+        this.itemRepo = itemRepo;
         this.consultaService = consultaService;
         this.notificacionService = notificacionService;
         this.seguroService = seguroService;
@@ -127,6 +164,9 @@ public class ProductoDuenioService {
         producto.setEstado(aceptados ? "aceptado" : "devuelto");
         producto.setDisponible(aceptados ? "si" : "no");
         productoRepo.save(producto);
+        if (aceptados) {
+            asignarSubastaColeccionSiCorresponde(producto);
+        }
         return new TerminosResponse(id, aceptados, producto.getEstado());
     }
 
@@ -157,8 +197,14 @@ public class ProductoDuenioService {
             throw ApiException.unprocessable(ErrorCodes.TERMS_NOT_ACCEPTED,
                     "Debes aceptar los terminos para ofrecer un bien");
         }
+        if (!Boolean.TRUE.equals(req.origenLicitoDeclarado())) {
+            throw ApiException.unprocessable(ErrorCodes.ORIGIN_NOT_DECLARED,
+                    "Debes declarar el origen licito del bien");
+        }
 
         List<byte[]> fotos = decodeFotos(req.fotos());
+        BigDecimal precioBase = precioBase(req.precioBase());
+        String moneda = moneda(req.moneda());
 
         // El dueño puede no estar dado de alta todavia: lo creamos pendiente de
         // verificacion (financiera/judicial las completa un empleado luego).
@@ -181,6 +227,7 @@ public class ProductoDuenioService {
         prod.setEstado("en_revision");
         prod.setSeguro(null);
         prod = productoRepo.save(prod);
+        guardarDatosOferta(prod.getIdentificador(), req, precioBase, moneda);
 
         int orden = 0;
         for (byte[] bytes : fotos) {
@@ -269,9 +316,13 @@ public class ProductoDuenioService {
     }
 
     private ProductoDto toDto(Producto pr) {
+        ProductoOfertaDatos oferta = ofertaRepo.findByProducto(pr.getIdentificador()).orElse(null);
         return new ProductoDto(pr.getIdentificador(), pr.getDescripcionCatalogo(),
                 pr.getDescripcionCompleta(), pr.getEstado(), pr.getDisponible(),
-                pr.getNombreArtista(), pr.getSeguro());
+                pr.getNombreArtista(), pr.getSeguro(),
+                oferta == null ? null : oferta.getEstadoOrigen(),
+                oferta == null ? null : oferta.getAlertaAutoridades(),
+                oferta == null ? null : oferta.getSubastaColeccion());
     }
 
     private Producto requireOwned(Integer id) {
@@ -282,5 +333,110 @@ public class ProductoDuenioService {
             throw ApiException.forbidden(ErrorCodes.NOT_OWNER_OF_PRODUCTO, "Este producto no es tuyo");
         }
         return producto;
+    }
+
+    private void guardarDatosOferta(Integer productoId, CreateProductoRequest req,
+                                    BigDecimal precioBase, String moneda) {
+        ProductoOfertaDatos datos = new ProductoOfertaDatos();
+        datos.setProducto(productoId);
+        datos.setPrecioBaseSugerido(precioBase);
+        datos.setMoneda(moneda);
+        datos.setCantidad(req.cantidad() == null || req.cantidad() < 1 ? 1 : req.cantidad());
+        datos.setOrigenLicitoDeclarado("si");
+        datos.setDetalleOrigen(req.detalleOrigen().trim());
+        datos.setDocumentacionOrigen(emptyToNull(req.documentacionOrigen()));
+        datos.setEstadoOrigen("declarado");
+        datos.setAlertaAutoridades("no");
+        ofertaRepo.save(datos);
+    }
+
+    private BigDecimal precioBase(BigDecimal value) {
+        if (value == null || value.compareTo(MIN_PRECIO_BASE) < 0) {
+            throw ApiException.unprocessable(ErrorCodes.INVALID_DATA,
+                    "El precio base sugerido debe ser mayor a 0.01");
+        }
+        return value.setScale(2, RoundingMode.HALF_UP);
+    }
+
+    private String moneda(String value) {
+        String moneda = value == null || value.isBlank() ? "ARS" : value.trim().toUpperCase(Locale.ROOT);
+        if (!List.of("ARS", "USD").contains(moneda)) {
+            throw ApiException.unprocessable(ErrorCodes.INVALID_DATA, "La moneda debe ser ARS o USD");
+        }
+        return moneda;
+    }
+
+    private void asignarSubastaColeccionSiCorresponde(Producto productoAceptado) {
+        ProductoOfertaDatos ofertaActual = ofertaRepo.findByProducto(productoAceptado.getIdentificador()).orElse(null);
+        if (ofertaActual == null || ofertaActual.getSubastaColeccion() != null) return;
+
+        String moneda = moneda(ofertaActual.getMoneda());
+        List<Producto> candidatos = productoRepo.findByDuenio(productoAceptado.getDuenio()).stream()
+                .filter(p -> "aceptado".equals(p.getEstado()))
+                .filter(p -> "si".equals(p.getDisponible()))
+                .filter(p -> itemRepo.findFirstByProducto(p.getIdentificador()).isEmpty())
+                .filter(p -> {
+                    ProductoOfertaDatos oferta = ofertaRepo.findByProducto(p.getIdentificador()).orElse(null);
+                    return oferta != null
+                            && oferta.getSubastaColeccion() == null
+                            && moneda.equals(moneda(oferta.getMoneda()))
+                            && !"si".equals(oferta.getAlertaAutoridades());
+                })
+                .sorted(Comparator.comparing(Producto::getIdentificador))
+                .toList();
+        if (candidatos.size() < umbralColeccion) return;
+
+        Persona persona = personaRepo.findById(productoAceptado.getDuenio()).orElse(null);
+        String nombreColeccion = nombreColeccion(persona);
+        Subasta subasta = new Subasta();
+        subasta.setFecha(LocalDate.now().plusDays(Math.max(diasAnticipacionColeccion, 11)));
+        subasta.setHora(LocalTime.of(20, 0));
+        subasta.setEstado(null);
+        subasta.setSubastador(null);
+        subasta.setUbicacion("Deposito Central - " + nombreColeccion);
+        subasta.setCapacidadAsistentes(100);
+        subasta.setTieneDeposito("si");
+        subasta.setSeguridadPropia("si");
+        subasta.setCategoria("comun");
+        subasta.setMoneda(moneda);
+        subasta = subastaRepo.save(subasta);
+
+        Catalogo catalogo = new Catalogo();
+        catalogo.setDescripcion(nombreColeccion);
+        catalogo.setSubasta(subasta.getIdentificador());
+        catalogo.setResponsable(primerEmpleado());
+        catalogo = catalogoRepo.save(catalogo);
+
+        for (Producto producto : candidatos) {
+            ProductoOfertaDatos oferta = ofertaRepo.findByProducto(producto.getIdentificador()).orElse(null);
+            if (oferta == null) continue;
+            ItemCatalogo item = new ItemCatalogo();
+            item.setCatalogo(catalogo.getIdentificador());
+            item.setProducto(producto.getIdentificador());
+            item.setPrecioBase(precioBase(oferta.getPrecioBaseSugerido()));
+            item.setComision(comisionDe(oferta.getPrecioBaseSugerido()));
+            item.setSubastado("no");
+            itemRepo.save(item);
+
+            producto.setEstado("en_subasta");
+            productoRepo.save(producto);
+            oferta.setSubastaColeccion(subasta.getIdentificador());
+            ofertaRepo.save(oferta);
+        }
+
+        notificacionService.crearParaCliente(productoAceptado.getDuenio(), "SUBASTA_COLECCION:" + subasta.getIdentificador(),
+                "Se creo la subasta " + nombreColeccion + " con tus piezas aceptadas.");
+    }
+
+    private BigDecimal comisionDe(BigDecimal precioBase) {
+        BigDecimal comision = precioBase(precioBase).multiply(COMISION_COLECCION).setScale(2, RoundingMode.HALF_UP);
+        return comision.compareTo(BigDecimal.ONE) < 0 ? BigDecimal.ONE : comision;
+    }
+
+    private String nombreColeccion(Persona persona) {
+        String nombre = persona == null ? "usuario" : Objects.toString(persona.getNombre(), "").trim();
+        String apellido = persona == null ? "" : Objects.toString(persona.getApellido(), "").trim();
+        String completo = (nombre + " " + apellido).trim();
+        return "Coleccion de " + (completo.isBlank() ? "usuario" : completo);
     }
 }

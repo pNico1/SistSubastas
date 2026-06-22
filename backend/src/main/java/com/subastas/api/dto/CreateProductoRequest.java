@@ -5,6 +5,7 @@ import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 /**
@@ -18,6 +19,12 @@ public record CreateProductoRequest(
         @Size(max = 200) String nombreArtista,
         @Size(max = 50) String fechaObra,
         @Size(max = 1000) String historia,
+        @NotNull BigDecimal precioBase,
+        @Size(max = 3) String moneda,
+        Integer cantidad,
+        @NotNull Boolean origenLicitoDeclarado,
+        @NotBlank @Size(max = 1000) String detalleOrigen,
+        @Size(max = 500) String documentacionOrigen,
         @NotNull Boolean terminosAceptados,
         @NotEmpty @Size(min = 6, max = 8) List<@NotBlank String> fotos // base64, entre 6 y 8
 ) {}

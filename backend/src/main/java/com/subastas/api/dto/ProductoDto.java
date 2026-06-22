@@ -7,5 +7,8 @@ public record ProductoDto(
         String estado,
         String disponible,
         String nombreArtista,
-        String seguro
+        String seguro,
+        String estadoOrigen,
+        String alertaAutoridades,
+        Integer subastaColeccionId
 ) {}

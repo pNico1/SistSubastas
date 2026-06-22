@@ -63,7 +63,8 @@ export const productosApi = {
   misProductos: () => client.get('/api/clientes/me/productos').then((r) => r.data),
   getById: (id) => client.get(`/api/clientes/me/productos/${id}`).then((r) => r.data),
   // data: { descripcionCatalogo, descripcionCompleta, nombreArtista, fechaObra,
-  //         historia, terminosAceptados, fotos: [base64...] }
+  //         historia, precioBase, moneda, origenLicitoDeclarado, detalleOrigen,
+  //         documentacionOrigen, terminosAceptados, fotos: [base64...] }
   crear: (data) => client.post('/api/clientes/me/productos', data).then((r) => r.data),
 
   // ---- Área 2: dueño / revisión / seguros ----

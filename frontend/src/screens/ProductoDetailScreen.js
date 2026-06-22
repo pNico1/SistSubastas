@@ -199,6 +199,16 @@ export default function ProductoDetailScreen({ navigation, route }) {
           </Section>
 
           {/* Ubicación / depósito — solo si ya fue aceptado */}
+          {producto.origen && (
+            <Section title="Origen licito" icon="policy">
+              <InfoRow label="Estado" value={producto.origen.estado} />
+              <InfoRow label="Procedencia" value={producto.origen.detalle} />
+              <InfoRow label="Documentacion" value={producto.origen.documentacion} />
+              <InfoRow label="Alerta a autoridades" value={producto.origen.alertaAutoridades === 'si' ? 'Registrada' : 'No registrada'} />
+              <InfoRow label="Motivo" value={producto.origen.motivoAlerta} />
+            </Section>
+          )}
+
           {(producto.estado === 'en_subasta' || producto.estado === 'aceptado' || producto.estado === 'aprobado' || producto.estado === 'vendido') && (
             <Section title="Ubicación de la pieza" icon="location-on">
               <InfoRow label="Depósito" value={producto.deposito || 'A confirmar'} />

@@ -63,7 +63,7 @@ function Field({ label, error, required, multiline, ...props }) {
 
 // Sección expandible de detalles adicionales
 function ExpandableSection({ children }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(true);
   return (
     <View style={styles.expandCard}>
       <TouchableOpacity style={styles.expandHeader} onPress={() => setOpen((v) => !v)} activeOpacity={0.75}>
@@ -96,10 +96,13 @@ export default function OfrecerBienScreen({ navigation, route }) {
     precioBase: '',
     moneda: 'ARS',
     cantidad: '1',
+    detalleOrigen: '',
+    documentacionOrigen: '',
   });
   const [fotos, setFotos] = useState([]);
   const [terminos, setTerminos] = useState(false);
   const [terminosCuracion, setTerminosCuracion] = useState(false);
+  const [origenLicito, setOrigenLicito] = useState(false);
   const [errors, setErrors] = useState({});
   const [serverError, setServerError] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -140,11 +143,13 @@ export default function OfrecerBienScreen({ navigation, route }) {
 
   function validate() {
     const e = {};
+    if (!form.detalleOrigen.trim()) e.detalleOrigen = 'Indica como adquiriste o recibiste el bien';
     if (!form.descripcionCatalogo.trim()) e.descripcionCatalogo = 'Poné un título para el bien';
     if (!form.precioBase.trim()) e.precioBase = 'Ingresá un precio base';
     if (fotos.length < MIN_FOTOS) e.fotos = `Subí al menos ${MIN_FOTOS} fotos (${fotos.length}/${MIN_FOTOS})`;
     if (!terminos) e.terminos = 'Tenés que declarar que el bien te pertenece';
     if (!terminosCuracion) e.terminosCuracion = 'Tenés que aceptar las condiciones de curaduría';
+    if (!origenLicito) e.origenLicito = 'Tenes que declarar el origen licito del bien';
     setErrors(e);
     return Object.keys(e).length === 0;
   }
@@ -163,6 +168,9 @@ export default function OfrecerBienScreen({ navigation, route }) {
         precioBase: parseFloat(form.precioBase) || null,
         moneda: form.moneda,
         cantidad: parseInt(form.cantidad) || 1,
+        origenLicitoDeclarado: origenLicito,
+        detalleOrigen: form.detalleOrigen.trim(),
+        documentacionOrigen: form.documentacionOrigen.trim() || null,
         terminosAceptados: terminos,
         fotos: fotos.map((f) => f.base64),
       });
@@ -174,6 +182,7 @@ export default function OfrecerBienScreen({ navigation, route }) {
     } catch (err) {
       if (err.code === 'NO_PHOTOS') setErrors((e) => ({ ...e, fotos: err.message }));
       else if (err.code === 'TERMS_NOT_ACCEPTED') setErrors((e) => ({ ...e, terminos: err.message }));
+      else if (err.code === 'ORIGIN_NOT_DECLARED') setErrors((e) => ({ ...e, origenLicito: err.message }));
       else if (err.code === 'VALIDATION_ERROR' && err.fields) setErrors((e) => ({ ...e, ...err.fields }));
       else setServerError(err.message || 'No se pudo enviar el producto');
     } finally {
@@ -327,6 +336,22 @@ export default function OfrecerBienScreen({ navigation, route }) {
               placeholder="De dónde viene la pieza..."
               multiline
             />
+            <Field
+              label="Origen licito / procedencia"
+              required
+              value={form.detalleOrigen}
+              onChangeText={(v) => set('detalleOrigen', v)}
+              placeholder="Ej: compra familiar, herencia, factura, certificado..."
+              multiline
+              error={errors.detalleOrigen}
+            />
+            <Field
+              label="Documentacion de respaldo"
+              value={form.documentacionOrigen}
+              onChangeText={(v) => set('documentacionOrigen', v)}
+              placeholder="Nro. de factura, certificado, escribania o referencia documental"
+              multiline
+            />
           </ExpandableSection>
 
           {/* Checks legales */}
@@ -360,6 +385,21 @@ export default function OfrecerBienScreen({ navigation, route }) {
               </Text>
             </TouchableOpacity>
             {errors.terminosCuracion ? <Text style={styles.fieldError}>{errors.terminosCuracion}</Text> : null}
+
+            <TouchableOpacity
+              style={styles.checkRow}
+              onPress={() => { setOrigenLicito((t) => !t); setErrors((e) => ({ ...e, origenLicito: undefined })); }}
+              activeOpacity={0.75}
+            >
+              <View style={[styles.checkbox, origenLicito && styles.checkboxOn]}>
+                {origenLicito && <MaterialIcons name="check" size={13} color={p.white} />}
+              </View>
+              <Text style={styles.checkText}>
+                Declaro que el bien tiene origen licito y acepto presentar documentacion adicional si la empresa lo solicita.{' '}
+                <Text style={{ color: p.danger }}>*</Text>
+              </Text>
+            </TouchableOpacity>
+            {errors.origenLicito ? <Text style={styles.fieldError}>{errors.origenLicito}</Text> : null}
           </View>
 
           {serverError ? <Text style={styles.serverError}>{serverError}</Text> : null}

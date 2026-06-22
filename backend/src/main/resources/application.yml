@@ -42,6 +42,10 @@ app:
     costo-envio-ars: ${SHIPPING_COST_ARS:15000}
     costo-envio-usd: ${SHIPPING_COST_USD:50}
 
+  colecciones:
+    umbral-productos: ${COLLECTION_AUCTION_THRESHOLD:3}
+    dias-anticipacion: ${COLLECTION_AUCTION_DAYS_AHEAD:14}
+
   jwt:
     secret: ${JWT_SECRET:clave-super-secreta-de-al-menos-32-bytes-para-HS256}
     access-token-minutes: 30

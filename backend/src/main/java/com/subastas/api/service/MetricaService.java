@@ -14,6 +14,10 @@ import java.util.stream.Collectors;
 
 @Service
 public class MetricaService {
+    private static final String ESTADO_ABIERTA = "abierta";
+    private static final String ESTADO_CERRADA = "cerrada";
+    private static final String ESTADO_CERRADA_DB = "carrada";
+
     private final AsistenteRepository asistenteRepo;
     private final SubastaRepository subastaRepo;
     private final PujoRepository pujoRepo;
@@ -38,12 +42,13 @@ public class MetricaService {
                 .map(RegistroDeSubasta::getSubasta).collect(Collectors.toSet());
         return asistenteRepo.findByCliente(cliente).stream().map(a -> {
             Subasta s = subastaRepo.findById(a.getSubasta()).orElse(null);
+            String estado = normalizeEstado(s == null ? null : s.getEstado());
             String resultado = ganadas.contains(a.getSubasta()) ? "ganada"
-                    : s != null && "cerrada".equals(s.getEstado()) ? "sin_victoria" : "en_curso";
+                    : isCerrada(estado) ? "sin_victoria" : "en_curso";
             return new AsistenciaDto(a.getSubasta(), a.getNumeroPostor(),
                     s == null ? null : s.getFecha(), s == null ? null : s.getHora(),
                     s == null ? null : s.getCategoria(), s == null ? null : s.getMoneda(),
-                    s == null ? null : s.getEstado(), resultado);
+                    estado, resultado);
         }).sorted(Comparator.comparing(AsistenciaDto::fecha,
                 Comparator.nullsLast(Comparator.reverseOrder()))).toList();
     }
@@ -57,8 +62,8 @@ public class MetricaService {
         Map<String, Long> categorias = items.stream().filter(x -> x.categoria() != null)
                 .collect(Collectors.groupingBy(AsistenciaDto::categoria, LinkedHashMap::new, Collectors.counting()));
         return new AsistenciasStatsResponse(items.size(), categorias,
-                items.stream().filter(x -> "abierta".equals(x.estado())).count(),
-                items.stream().filter(x -> "cerrada".equals(x.estado())).count());
+                items.stream().filter(x -> ESTADO_ABIERTA.equals(x.estado())).count(),
+                items.stream().filter(x -> isCerrada(x.estado())).count());
     }
 
     public List<VictoriaDto> getMyVictories() {
@@ -113,5 +118,13 @@ public class MetricaService {
 
     private static BigDecimal zero(BigDecimal value) {
         return value == null ? BigDecimal.ZERO : value;
+    }
+
+    private static boolean isCerrada(String estado) {
+        return ESTADO_CERRADA.equals(estado) || ESTADO_CERRADA_DB.equals(estado);
+    }
+
+    private static String normalizeEstado(String estado) {
+        return ESTADO_CERRADA_DB.equals(estado) ? ESTADO_CERRADA : estado;
     }
 }

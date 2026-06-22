@@ -10,7 +10,9 @@ public record ProductoDetalleDto(
         String estado, String disponible, String nombreArtista, String fechaObra, String historia,
         String terminosAceptados, BigDecimal precioBase, BigDecimal comision, String moneda,
         Integer subastaId, LocalDate subastaFecha, LocalTime subastaHora, String deposito,
-        PolizaDto poliza, List<String> fotos
+        PolizaDto poliza, OrigenDto origen, List<String> fotos
 ) {
     public record PolizaDto(String numero, String cobertura, BigDecimal valorAsegurado, String compania) {}
+    public record OrigenDto(String estado, String detalle, String documentacion,
+                            String alertaAutoridades, String motivoAlerta, Integer subastaColeccionId) {}
 }

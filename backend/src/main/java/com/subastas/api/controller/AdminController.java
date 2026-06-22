@@ -6,6 +6,7 @@ import com.subastas.api.domain.*;
 import com.subastas.api.repository.*;
 import com.subastas.api.security.CurrentUser;
 import com.subastas.api.service.EmailService;
+import com.subastas.api.service.NotificacionService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -41,6 +42,8 @@ public class AdminController {
     private final PersonaRepository personaRepo;
     private final EmailService emailService;
     private final MedioPagoRepository medioPagoRepo;
+    private final ProductoOfertaDatosRepository ofertaRepo;
+    private final NotificacionService notificacionService;
 
     public AdminController(SubastaRepository subastaRepo,
                            AsistenteRepository asistenteRepo,
@@ -57,7 +60,9 @@ public class AdminController {
                            UsuarioRepository usuarioRepo,
                            PersonaRepository personaRepo,
                            EmailService emailService,
-                           MedioPagoRepository medioPagoRepo) {
+                           MedioPagoRepository medioPagoRepo,
+                           ProductoOfertaDatosRepository ofertaRepo,
+                           NotificacionService notificacionService) {
         this.subastaRepo = subastaRepo;
         this.asistenteRepo = asistenteRepo;
         this.catalogoRepo = catalogoRepo;
@@ -74,6 +79,8 @@ public class AdminController {
         this.personaRepo = personaRepo;
         this.emailService = emailService;
         this.medioPagoRepo = medioPagoRepo;
+        this.ofertaRepo = ofertaRepo;
+        this.notificacionService = notificacionService;
     }
 
     @PutMapping("/clientes/{id}/verificar")
@@ -352,6 +359,7 @@ public class AdminController {
         r.setEstado("aprobado");
         if (body != null && body.containsKey("observaciones")) r.setObservaciones(str(body, "observaciones"));
         Producto p = requireProducto(r.getProducto());
+        procesarOrigenRevision(p, body);
         p.setEstado("aprobado");
         p.setDisponible("si");
         productoRepo.save(p);
@@ -364,10 +372,24 @@ public class AdminController {
         r.setEstado("rechazado");
         if (body != null && body.containsKey("motivo")) r.setMotivo(str(body, "motivo"));
         Producto p = requireProducto(r.getProducto());
+        procesarOrigenRevision(p, body);
         p.setEstado("rechazado");
         p.setDisponible("no");
         productoRepo.save(p);
         return revisionRepo.save(r);
+    }
+
+    @PutMapping("/productos/{id}/origen")
+    public Map<String, Object> revisarOrigenProducto(@PathVariable Integer id,
+                                                     @RequestBody(required = false) Map<String, Object> body) {
+        Producto producto = requireProducto(id);
+        ProductoOfertaDatos datos = procesarOrigenRevision(producto, body == null ? Map.of() : body);
+        return Map.of(
+                "producto", id,
+                "estadoOrigen", datos.getEstadoOrigen(),
+                "alertaAutoridades", datos.getAlertaAutoridades(),
+                "motivoAlerta", datos.getMotivoAlerta() == null ? "" : datos.getMotivoAlerta()
+        );
     }
 
     private Factura crearFactura(RegistroDeSubasta r) {
@@ -380,6 +402,35 @@ public class AdminController {
         f.setTotal(nullToZero(r.getImporte()).add(nullToZero(r.getComision())));
         f.setFecha(LocalDateTime.now());
         return facturaRepo.save(f);
+    }
+
+    private ProductoOfertaDatos procesarOrigenRevision(Producto producto, Map<String, Object> body) {
+        Map<String, Object> safeBody = body == null ? Map.of() : body;
+        ProductoOfertaDatos datos = ofertaRepo.findByProducto(producto.getIdentificador()).orElseGet(() -> {
+            ProductoOfertaDatos nuevo = new ProductoOfertaDatos();
+            nuevo.setProducto(producto.getIdentificador());
+            nuevo.setOrigenLicitoDeclarado("no");
+            nuevo.setEstadoOrigen("declarado");
+            nuevo.setAlertaAutoridades("no");
+            return nuevo;
+        });
+
+        boolean alertar = bool(safeBody, "origenDudoso") || bool(safeBody, "alertarAutoridades");
+        if (alertar) {
+            String motivo = strOr(safeBody, "motivoAlerta", strOr(safeBody, "motivo", "Origen licito dudoso"));
+            datos.setEstadoOrigen("observado");
+            datos.setAlertaAutoridades("si");
+            datos.setMotivoAlerta(motivo);
+            datos.setFechaAlerta(LocalDateTime.now());
+            notificacionService.crearParaCliente(producto.getDuenio(), "ALERTA_AUTORIDADES:" + producto.getIdentificador(),
+                    "La empresa detecto dudas sobre el origen licito de la pieza y registro la alerta correspondiente.");
+        } else if (!bool(safeBody, "mantenerOrigenPendiente")) {
+            datos.setEstadoOrigen("validado");
+            datos.setAlertaAutoridades("no");
+            datos.setMotivoAlerta(null);
+            datos.setFechaAlerta(null);
+        }
+        return ofertaRepo.save(datos);
     }
 
     private void applyProductoFields(Producto p, Map<String, Object> body) {
@@ -459,6 +510,12 @@ public class AdminController {
     private static Integer integerOr(Map<String, Object> body, String key, Integer fallback) {
         Integer value = integer(body, key);
         return value == null ? fallback : value;
+    }
+
+    private static boolean bool(Map<String, Object> body, String key) {
+        Object value = body.get(key);
+        if (value instanceof Boolean b) return b;
+        return value != null && Boolean.parseBoolean(String.valueOf(value));
     }
 
     private static BigDecimal decimal(Map<String, Object> body, String key) {

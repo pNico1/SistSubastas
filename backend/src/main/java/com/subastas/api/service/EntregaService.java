@@ -5,10 +5,12 @@ import com.subastas.api.common.ErrorCodes;
 import com.subastas.api.common.dto.MessageResponse;
 import com.subastas.api.domain.Entrega;
 import com.subastas.api.domain.Factura;
+import com.subastas.api.domain.Producto;
 import com.subastas.api.domain.RegistroDeSubasta;
 import com.subastas.api.dto.*;
 import com.subastas.api.repository.EntregaRepository;
 import com.subastas.api.repository.FacturaRepository;
+import com.subastas.api.repository.ProductoRepository;
 import com.subastas.api.repository.RegistroDeSubastaRepository;
 import com.subastas.api.repository.SubastaRepository;
 import com.subastas.api.security.AuthPrincipal;
@@ -35,6 +37,7 @@ public class EntregaService {
     private final RegistroDeSubastaRepository rdsRepo;
     private final FacturaRepository facturaRepo;
     private final SubastaRepository subastaRepo;
+    private final ProductoRepository productoRepo;
 
     @Value("${app.entregas.costo-envio-ars:15000}")
     private BigDecimal costoEnvioArs;
@@ -43,11 +46,13 @@ public class EntregaService {
     private BigDecimal costoEnvioUsd;
 
     public EntregaService(EntregaRepository entregaRepo, RegistroDeSubastaRepository rdsRepo,
-                          FacturaRepository facturaRepo, SubastaRepository subastaRepo) {
+                          FacturaRepository facturaRepo, SubastaRepository subastaRepo,
+                          ProductoRepository productoRepo) {
         this.entregaRepo = entregaRepo;
         this.rdsRepo = rdsRepo;
         this.facturaRepo = facturaRepo;
         this.subastaRepo = subastaRepo;
+        this.productoRepo = productoRepo;
     }
 
     @Transactional
@@ -101,6 +106,10 @@ public class EntregaService {
         entregaRepo.save(e);
         r.setEstado("entregado");
         rdsRepo.save(r);
+        boolean coberturaFinalizada = finalizarCoberturaSiRetira(e, r);
+        if (coberturaFinalizada) {
+            return MessageResponse.of("Entrega confirmada correctamente. La cobertura del seguro finalizo por retiro personal.");
+        }
         return MessageResponse.of("Entrega confirmada correctamente");
     }
 
@@ -168,6 +177,19 @@ public class EntregaService {
         f.setTotal(nz(r.getImporte()).add(nz(r.getComision())).add(nz(costoEnvio)));
         if (f.getFecha() == null) f.setFecha(LocalDateTime.now());
         facturaRepo.save(f);
+    }
+
+    private boolean finalizarCoberturaSiRetira(Entrega entrega, RegistroDeSubasta adquisicion) {
+        if (!"retiro".equals(entrega.getTipo()) || adquisicion.getProducto() == null) {
+            return false;
+        }
+        Producto producto = productoRepo.findById(adquisicion.getProducto()).orElse(null);
+        if (producto == null || producto.getSeguro() == null) {
+            return false;
+        }
+        producto.setSeguro(null);
+        productoRepo.save(producto);
+        return true;
     }
 
     private BigDecimal nz(BigDecimal value) {

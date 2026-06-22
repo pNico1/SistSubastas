@@ -73,6 +73,7 @@ public final class ErrorCodes {
 
     // ofrecer un bien (alta de producto)
     public static final String TERMS_NOT_ACCEPTED = "TERMS_NOT_ACCEPTED";
+    public static final String ORIGIN_NOT_DECLARED = "ORIGIN_NOT_DECLARED";
     public static final String NO_PHOTOS = "NO_PHOTOS";
     public static final String INVALID_IMAGE = "INVALID_IMAGE";
 

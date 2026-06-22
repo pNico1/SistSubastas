@@ -20,16 +20,19 @@ public class ProductoConsultaService {
     private final CatalogoRepository catalogoRepo;
     private final SubastaRepository subastaRepo;
     private final SeguroRepository seguroRepo;
+    private final ProductoOfertaDatosRepository ofertaRepo;
 
     public ProductoConsultaService(ProductoRepository productoRepo, FotoRepository fotoRepo,
                                    ItemCatalogoRepository itemRepo, CatalogoRepository catalogoRepo,
-                                   SubastaRepository subastaRepo, SeguroRepository seguroRepo) {
+                                   SubastaRepository subastaRepo, SeguroRepository seguroRepo,
+                                   ProductoOfertaDatosRepository ofertaRepo) {
         this.productoRepo = productoRepo;
         this.fotoRepo = fotoRepo;
         this.itemRepo = itemRepo;
         this.catalogoRepo = catalogoRepo;
         this.subastaRepo = subastaRepo;
         this.seguroRepo = seguroRepo;
+        this.ofertaRepo = ofertaRepo;
     }
 
     public ProductoDetalleDto getProductoById(Integer id) {
@@ -69,12 +72,17 @@ public class ProductoConsultaService {
                 ? null : subastaRepo.findById(catalogo.getSubasta()).orElse(null);
         Seguro seguro = producto.getSeguro() == null
                 ? null : seguroRepo.findById(producto.getSeguro()).orElse(null);
+        ProductoOfertaDatos oferta = ofertaRepo.findByProducto(producto.getIdentificador()).orElse(null);
 
         List<String> fotos = fotoRepo.findByProductoOrderByOrden(producto.getIdentificador()).stream()
                 .map(this::fotoContenido).toList();
         ProductoDetalleDto.PolizaDto poliza = seguro == null || !puedeVerPrecio ? null
                 : new ProductoDetalleDto.PolizaDto(seguro.getNroPoliza(), cobertura(seguro),
                     seguro.getImporte(), seguro.getCompania());
+        ProductoDetalleDto.OrigenDto origen = oferta == null ? null
+                : new ProductoDetalleDto.OrigenDto(oferta.getEstadoOrigen(), oferta.getDetalleOrigen(),
+                    oferta.getDocumentacionOrigen(), oferta.getAlertaAutoridades(),
+                    oferta.getMotivoAlerta(), oferta.getSubastaColeccion());
 
         return new ProductoDetalleDto(
                 producto.getIdentificador(), producto.getIdentificador(), producto.getDescripcionCatalogo(),
@@ -84,7 +92,7 @@ public class ProductoConsultaService {
                 item == null || !puedeVerPrecio ? null : item.getComision(), subasta == null ? null : subasta.getMoneda(),
                 subasta == null ? null : subasta.getIdentificador(), subasta == null ? null : subasta.getFecha(),
                 subasta == null ? null : subasta.getHora(), subasta == null ? null : subasta.getUbicacion(),
-                poliza, fotos);
+                poliza, origen, fotos);
     }
 
     private Producto requireProducto(Integer id) {
