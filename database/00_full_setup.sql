@@ -693,6 +693,7 @@ INSERT INTO clientes (identificador, numeroPais, admitido, categoria, verificado
 
 -- duenios --------------------------------------------------------------------
 INSERT INTO duenios (identificador, numeroPais, `verificaciÃ³nFinanciera`, `verificaciÃ³nJudicial`, calificacionRiesgo, verificador) VALUES
+ (4, 1, 'si', 'si', 1, 1),
  (6, 1, 'si', 'si', 2, 1),
  (8, 5, 'si', 'si', 3, 1),
  (9, 2, 'si', 'si', 2, 1);
@@ -702,7 +703,10 @@ INSERT INTO seguros (nroPoliza, compania, polizaCombinada, importe) VALUES
  ('ABC123', 'Zurich',               'no', 15000.00),
  ('ART778', 'Aseguradora Rio Plata','si', 42000.00),
  ('COL555', 'La Caja Arte',         'no', 23000.00),
- ('BRZ909', 'Allianz Objetos Finos', 'no', 18000.00);
+ ('BRZ909', 'Allianz Objetos Finos', 'no', 18000.00),
+ ('JPN120', 'Provincia Seguros',     'no', 12000.00),
+ ('JAR441', 'Sancor Arte',           'no', 28000.00),
+ ('VIN334', 'Mercantil Andina',      'no', 16000.00);
 
 -- productos ------------------------------------------------------------------
 -- descripcionCompleta se usa como texto breve visible en la app, no como link.
@@ -730,7 +734,22 @@ INSERT INTO productos (identificador, fecha, disponible, descripcionCatalogo, de
   1, 9, NULL),
  (107, '2026-04-08', 'si', 'Escultura de bronce Art Nouveau',
   'Figura de bronce patinado con base circular y detalles florales. Pieza decorativa pesada, con terminacion envejecida.',
-  1, 9, 'BRZ909');
+  1, 9, 'BRZ909'),
+ (108, '2026-04-09', 'si', 'Juego de lapiceras Parker Duofold',
+  'Set de dos lapiceras de coleccion con estuche original, plumines dorados y terminacion marmolada en tonos borgona.',
+  1, 4, 'JAR441'),
+ (109, '2026-04-10', 'si', 'Ajedrez de madera tallada',
+  'Tablero plegable con piezas talladas a mano y compartimentos internos. Presenta desgaste leve compatible con uso familiar.',
+  1, 4, NULL),
+ (110, '2026-03-01', 'no', 'Bandeja de plata criolla',
+  'Bandeja oval de plata trabajada con guarda cincelada, iniciales antiguas y marcas de punzon visibles en el reverso.',
+  1, 4, 'JPN120'),
+ (111, '2026-03-02', 'no', 'Lampara Tiffany de mesa',
+  'Lampara decorativa con pantalla emplomada de vidrios verdes y ambar, base metalica patinada y cableado revisado.',
+  1, 6, NULL),
+ (112, '2026-03-03', 'no', 'Sable ceremonial antiguo',
+  'Sable ceremonial con empunadura labrada, vaina metalica y hoja grabada. Pieza de coleccion para exhibicion.',
+  1, 8, 'VIN334');
 
 INSERT INTO productosDatos (producto, estado, nombreArtista, fechaObra, historia, terminosAceptados) VALUES
  (100, 'aprobado', NULL, NULL,
@@ -756,6 +775,21 @@ INSERT INTO productosDatos (producto, estado, nombreArtista, fechaObra, historia
   'si'),
  (107, 'aprobado', 'Estilo Auguste Moreau', 'c. 1910',
   'Bronce de salon con lenguaje ornamental de cambio de siglo.',
+  'si'),
+ (108, 'en_subasta', 'Parker', 'c. 1990',
+  'Ingresado por Juan Perez como parte de una coleccion de objetos de escritorio.',
+  'si'),
+ (109, 'en_subasta', 'Artesano anonimo', 'c. 1975',
+  'Conservado en biblioteca familiar y revisado para subasta de objetos decorativos.',
+  'si'),
+ (110, 'vendido', 'Orfebreria criolla', 'c. 1940',
+  'Pieza familiar de Juan Perez vendida en una subasta anterior.',
+  'si'),
+ (111, 'vendido', 'Taller norteamericano', 'c. 1930',
+  'Lampara procedente de coleccion particular de Roberto Diaz.',
+  'si'),
+ (112, 'vendido', 'Fabricante europeo', 'c. 1910',
+  'Pieza historica consignada por Elena Vega para una subasta comun.',
   'si');
 
 -- fotos ----------------------------------------------------------------------
@@ -768,7 +802,12 @@ INSERT INTO fotos (identificador, producto, foto) VALUES
  (5, 104, 0x00),
  (6, 105, 0x00),
  (7, 106, 0x00),
- (8, 107, 0x00);
+ (8, 107, 0x00),
+ (9, 108, 0x00),
+ (10, 109, 0x00),
+ (11, 110, 0x00),
+ (12, 111, 0x00),
+ (13, 112, 0x00);
 
 INSERT INTO fotosDatos (foto, url, orden) VALUES
  (1, 'https://cdn.billowshop.com/57f0dd93-7e22-7738-ef65-bbb21545dbf4/img/Producto/40439df0-926e-146b-5945-8335b20b0692/Reloj3-a-13-66db84eb47253-O.jpg', 1),
@@ -778,24 +817,83 @@ INSERT INTO fotosDatos (foto, url, orden) VALUES
  (5, 'https://upload.wikimedia.org/wikipedia/commons/thumb/9/95/LEI0060_186_Leica_I_Sn.5193_1927_Originalzustand_Front-2_FS-15.jpg/330px-LEI0060_186_Leica_I_Sn.5193_1927_Originalzustand_Front-2_FS-15.jpg', 1),
  (6, 'https://upload.wikimedia.org/wikipedia/commons/thumb/f/f3/Stradivarius_violin_front.jpg/250px-Stradivarius_violin_front.jpg', 1),
  (7, 'https://upload.wikimedia.org/wikipedia/commons/thumb/9/98/Antique_Heriz_Serapi_Persian_Carpet.jpg/500px-Antique_Heriz_Serapi_Persian_Carpet.jpg', 1),
- (8, 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b9/Franz_Iffland_Art_Nouveau_Bronze_%281893%29.JPG/250px-Franz_Iffland_Art_Nouveau_Bronze_%281893%29.JPG', 1);
+ (8, 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b9/Franz_Iffland_Art_Nouveau_Bronze_%281893%29.JPG/250px-Franz_Iffland_Art_Nouveau_Bronze_%281893%29.JPG', 1),
+ (9, 'https://upload.wikimedia.org/wikipedia/commons/thumb/3/32/Fountain_pens.jpg/640px-Fountain_pens.jpg', 1),
+ (10, 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d9/Chess_board_opening_staunton.jpg/640px-Chess_board_opening_staunton.jpg', 1),
+ (11, 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/1e/Silver_tray.jpg/640px-Silver_tray.jpg', 1),
+ (12, 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/68/Tiffany_lamp.jpg/640px-Tiffany_lamp.jpg', 1),
+ (13, 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/55/Sabre_and_scabbard.jpg/640px-Sabre_and_scabbard.jpg', 1);
 
 -- subastas -------------------------------------------------------------------
 INSERT INTO subastas (identificador, fecha, hora, estado, subastador, ubicacion, capacidadAsistentes, tieneDeposito, seguridadPropia, categoria) VALUES
  (50, DATE_ADD(CURDATE(), INTERVAL 15 DAY), '18:00:00', NULL,      3, 'Av. Siempre Viva 123', 100, 'si', 'si', 'plata'),
  (51, DATE_ADD(CURDATE(), INTERVAL 20 DAY), '19:00:00', NULL,      3, 'Salon Central 50',      80, 'si', 'no', 'oro'),
- (52, DATE_ADD(CURDATE(), INTERVAL 30 DAY), '17:00:00', NULL,      3, 'Hall Norte 10',         60, 'no', 'si', 'comun');
+ (52, DATE_ADD(CURDATE(), INTERVAL 30 DAY), '17:00:00', NULL,      3, 'Hall Norte 10',         60, 'no', 'si', 'comun'),
+ (53, DATE_ADD(CURDATE(), INTERVAL 25 DAY), '20:00:00', NULL,      3, 'Galeria Sur 220',       70, 'si', 'si', 'oro');
 
 INSERT INTO subastasDatos (subasta, moneda) VALUES
  (50, 'ARS'),
  (51, 'USD'),
- (52, 'ARS');
+ (52, 'ARS'),
+ (53, 'ARS');
+
+-- subastas historicas --------------------------------------------------------
+-- El trigger de fecha valida la fecha de creacion, asi que se baja solo para
+-- materializar ventas pasadas del seed y se recrea igual que en el schema.
+DROP TRIGGER IF EXISTS trg_subastas_fecha_ins;
+DROP TRIGGER IF EXISTS trg_subastas_fecha_upd;
+
+INSERT INTO subastas (identificador, fecha, hora, estado, subastador, ubicacion, capacidadAsistentes, tieneDeposito, seguridadPropia, categoria) VALUES
+ (40, DATE_SUB(CURDATE(), INTERVAL 35 DAY), '18:30:00', 'carrada', 3, 'Salon Historico 1', 90, 'si', 'si', 'oro'),
+ (41, DATE_SUB(CURDATE(), INTERVAL 28 DAY), '17:00:00', 'carrada', 3, 'Salon de Arte 2',   85, 'si', 'si', 'plata'),
+ (42, DATE_SUB(CURDATE(), INTERVAL 20 DAY), '19:00:00', 'carrada', 3, 'Sala Norte 3',      75, 'no', 'si', 'comun');
+
+INSERT INTO subastasDatos (subasta, moneda) VALUES
+ (40, 'ARS'),
+ (41, 'ARS'),
+ (42, 'ARS');
+
+DELIMITER $$
+
+CREATE TRIGGER trg_subastas_fecha_ins BEFORE INSERT ON subastas
+FOR EACH ROW
+BEGIN
+    IF NEW.fecha IS NOT NULL AND NEW.fecha <= DATE_ADD(CURDATE(), INTERVAL 10 DAY) THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'La subasta debe crearse con al menos 10 dias de anticipacion';
+    END IF;
+END$$
+
+CREATE TRIGGER trg_subastas_fecha_upd BEFORE UPDATE ON subastas
+FOR EACH ROW
+BEGIN
+    IF NEW.fecha IS NOT NULL AND NEW.fecha <> OLD.fecha
+       AND NEW.fecha <= DATE_ADD(CURDATE(), INTERVAL 10 DAY) THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'La subasta debe crearse con al menos 10 dias de anticipacion';
+    END IF;
+END$$
+
+DELIMITER ;
+
+-- datos de oferta de los productos nuevos -----------------------------------
+INSERT INTO productoOfertaDatos
+ (producto, precioBaseSugerido, moneda, cantidad, origenLicitoDeclarado, detalleOrigen, documentacionOrigen, estadoOrigen, alertaAutoridades, motivoAlerta, fechaAlerta, subastaColeccion) VALUES
+ (108, 450000.00, 'ARS', 1, 'si', 'Coleccion personal de Juan Perez, comprada en comercio especializado.', NULL, 'validado', 'no', NULL, NULL, 53),
+ (109, 380000.00, 'ARS', 1, 'si', 'Bien familiar conservado por Juan Perez desde hace mas de diez anios.', NULL, 'validado', 'no', NULL, NULL, 53),
+ (110, 850000.00, 'ARS', 1, 'si', 'Bandeja heredada por Juan Perez y presentada con declaracion de origen.', NULL, 'validado', 'no', NULL, NULL, NULL),
+ (111, 720000.00, 'ARS', 1, 'si', 'Lampara consignada por Roberto Diaz para venta individual.', NULL, 'validado', 'no', NULL, NULL, NULL),
+ (112, 1200000.00, 'ARS', 1, 'si', 'Sable consignado por Elena Vega con documentacion de procedencia.', NULL, 'validado', 'no', NULL, NULL, NULL);
 
 -- catalogos ------------------------------------------------------------------
 INSERT INTO catalogos (identificador, descripcion, subasta, responsable) VALUES
+ (8,  'Subasta historica de plata y escritorio', 40, 2),
  (10, 'Relojes, muebles y arte argentino', 50, 2),
  (11, 'Coleccion internacional premium',   51, 2),
- (12, 'Decoracion y objetos de coleccion', 52, 2);
+ (12, 'Decoracion y objetos de coleccion', 52, 2),
+ (13, 'Coleccion publicada de Juan Perez', 53, 2),
+ (14, 'Historica de iluminacion y arte',   41, 2),
+ (15, 'Historica de militaria',            42, 2);
 
 INSERT INTO itemsCatalogo (identificador, catalogo, producto, precioBase, comision, subastado) VALUES
  (1, 10, 100, 1000000.00, 100000.00, 'no'),
@@ -805,7 +903,12 @@ INSERT INTO itemsCatalogo (identificador, catalogo, producto, precioBase, comisi
  (5, 11, 104,    3200.00,    320.00, 'no'),
  (6, 11, 105,    4500.00,    450.00, 'no'),
  (7, 12, 106,  380000.00,  38000.00, 'no'),
- (8, 12, 107,  520000.00,  52000.00, 'no');
+ (8, 12, 107,  520000.00,  52000.00, 'no'),
+ (9, 13, 108,  450000.00,  45000.00, 'no'),
+ (10, 13, 109, 380000.00,  38000.00, 'no'),
+ (11, 8, 110,  850000.00,  85000.00, 'si'),
+ (12, 14, 111, 720000.00,  72000.00, 'si'),
+ (13, 15, 112, 1200000.00, 120000.00, 'si');
 
 -- medios de pago -------------------------------------------------------------
 INSERT INTO mediosPago (cliente, tipo, marca, banco, ultimos4, cbu, titular, moneda, esInternacional, montoGarantia, estado) VALUES
@@ -816,13 +919,90 @@ INSERT INTO mediosPago (cliente, tipo, marca, banco, ultimos4, cbu, titular, mon
 
 -- cuentas de cobro para duenios ----------------------------------------------
 INSERT INTO cuentasCobroDuenio (duenio, titular, banco, identificadorBancario, moneda, pais, exterior, estado) VALUES
+ (4, 'Juan Perez',    'Banco Ciudad',  '0290000144000045678901', 'ARS', 'Argentina', 'no', 'activa'),
  (6, 'Roberto Diaz',  'Banco Galicia', '0720000188000012345678', 'ARS', 'Argentina', 'no', 'activa'),
  (8, 'Elena Vega',    'Intesa Sanpaolo','IT60X0542811101000000123456', 'USD', 'Italia', 'si', 'activa'),
  (9, 'Santiago Rossi','Banco do Brasil','BR1500000000000010932840814', 'ARS', 'Brasil', 'si', 'activa');
 
+-- historial de ventas, adquisiciones y multas -------------------------------
+INSERT INTO asistentes (identificador, numeroPostor, cliente, subasta) VALUES
+ (30, 101, 5, 40),
+ (31, 102, 7, 40),
+ (32, 201, 4, 41),
+ (33, 202, 5, 41),
+ (34, 301, 4, 42);
+
+INSERT INTO pujos (identificador, asistente, item, importe, ganador) VALUES
+ (30, 30, 11, 1000000.00, 'si'),
+ (31, 31, 11,  950000.00, 'no'),
+ (32, 32, 12,  900000.00, 'si'),
+ (33, 33, 12,  850000.00, 'no'),
+ (34, 34, 13, 1320000.00, 'si');
+
+INSERT INTO pujosDatos (pujo, fechaHora) VALUES
+ (30, DATE_ADD(DATE_SUB(NOW(), INTERVAL 35 DAY), INTERVAL 10 MINUTE)),
+ (31, DATE_ADD(DATE_SUB(NOW(), INTERVAL 35 DAY), INTERVAL 7 MINUTE)),
+ (32, DATE_ADD(DATE_SUB(NOW(), INTERVAL 28 DAY), INTERVAL 15 MINUTE)),
+ (33, DATE_ADD(DATE_SUB(NOW(), INTERVAL 28 DAY), INTERVAL 9 MINUTE)),
+ (34, DATE_ADD(DATE_SUB(NOW(), INTERVAL 20 DAY), INTERVAL 12 MINUTE));
+
+INSERT INTO registroDeSubasta (identificador, subasta, duenio, producto, cliente, importe, comision) VALUES
+ (30, 40, 4, 110, 5, 1000000.00,  85000.00),
+ (31, 41, 6, 111, 4,  900000.00,  72000.00),
+ (32, 42, 8, 112, 4, 1320000.00, 120000.00);
+
+INSERT INTO registroDeSubastaDatos (registro, estado, fecha) VALUES
+ (30, 'pagado',    DATE_SUB(NOW(), INTERVAL 34 DAY)),
+ (31, 'entregado', DATE_SUB(NOW(), INTERVAL 27 DAY)),
+ (32, 'en_mora',   DATE_SUB(NOW(), INTERVAL 20 DAY));
+
+INSERT INTO facturas (adquisicion, numeroFactura, importe, comision, costoEnvio, total, fecha) VALUES
+ (30, 'FAC-JV-0001', 1000000.00,  85000.00,     0.00, 1085000.00, DATE_SUB(NOW(), INTERVAL 34 DAY)),
+ (31, 'FAC-JG-0001',  900000.00,  72000.00, 15000.00,  987000.00, DATE_SUB(NOW(), INTERVAL 27 DAY)),
+ (32, 'FAC-JM-0001', 1320000.00, 120000.00,     0.00, 1440000.00, DATE_SUB(NOW(), INTERVAL 20 DAY));
+
+INSERT INTO entregas (adquisicion, tipo, estado, direccion, codigoRetiro, transportista, codigoSeguimiento, fechaEstimada) VALUES
+ (30, 'retiro', 'entregado', NULL, 'RET-JV-030', NULL, NULL, DATE_SUB(CURDATE(), INTERVAL 32 DAY)),
+ (31, 'envio',  'entregado', 'Av. Rivadavia 123, CABA', NULL, 'Andreani', 'AND-JP-031', DATE_SUB(CURDATE(), INTERVAL 24 DAY));
+
+INSERT INTO pagos (adquisicion, multa, medioPago, importeTotal, moneda, estado, fechaPago) VALUES
+ (30, NULL, (SELECT id FROM mediosPago WHERE cliente = 5 AND ultimos4 = '5678' LIMIT 1), 1085000.00, 'ARS', 'pagado', DATE_SUB(NOW(), INTERVAL 34 DAY)),
+ (31, NULL, (SELECT id FROM mediosPago WHERE cliente = 4 AND ultimos4 = '1234' LIMIT 1),  987000.00, 'ARS', 'pagado', DATE_SUB(NOW(), INTERVAL 27 DAY));
+
+INSERT INTO multas (id, cliente, adquisicion, importe, estado, fechaLimite, fecha) VALUES
+ (1, 4, 32, 132000.00, 'pending', DATE_ADD(CURDATE(), INTERVAL 3 DAY), DATE_SUB(NOW(), INTERVAL 3 DAY));
+
+INSERT INTO liquidacionesVenta
+ (producto, duenio, adquisicion, compraEmpresa, cuentaCobro, importeBruto, comision, importeNeto, moneda, estado, fechaGenerada, fechaTransferencia)
+SELECT 110, 4, 30, NULL, c.id, 1000000.00, 85000.00, 915000.00, 'ARS', 'enviada',
+       DATE_SUB(NOW(), INTERVAL 34 DAY), DATE_SUB(NOW(), INTERVAL 33 DAY)
+FROM cuentasCobroDuenio c
+WHERE c.duenio = 4 AND c.estado = 'activa'
+ORDER BY c.id DESC LIMIT 1;
+
+INSERT INTO liquidacionesVenta
+ (producto, duenio, adquisicion, compraEmpresa, cuentaCobro, importeBruto, comision, importeNeto, moneda, estado, fechaGenerada, fechaTransferencia)
+SELECT 111, 6, 31, NULL, c.id, 900000.00, 72000.00, 828000.00, 'ARS', 'enviada',
+       DATE_SUB(NOW(), INTERVAL 27 DAY), DATE_SUB(NOW(), INTERVAL 26 DAY)
+FROM cuentasCobroDuenio c
+WHERE c.duenio = 6 AND c.estado = 'activa'
+ORDER BY c.id DESC LIMIT 1;
+
+INSERT INTO liquidacionesVenta
+ (producto, duenio, adquisicion, compraEmpresa, cuentaCobro, importeBruto, comision, importeNeto, moneda, estado, fechaGenerada, fechaTransferencia)
+SELECT 112, 8, 32, NULL, c.id, 1320000.00, 120000.00, 1200000.00, 'ARS', 'pendiente',
+       DATE_SUB(NOW(), INTERVAL 20 DAY), NULL
+FROM cuentasCobroDuenio c
+WHERE c.duenio = 8 AND c.estado = 'activa'
+ORDER BY c.id DESC LIMIT 1;
+
 -- notificaciones -------------------------------------------------------------
 INSERT INTO notificaciones (cliente, tipo, mensaje, leido) VALUES
  (4, 'BIENVENIDA', 'Bienvenido a Bidster. Ya podes participar en subastas activas.', 'no'),
+ (4, 'OBJETO_VENDIDO:110', 'Tu bandeja de plata fue vendida al mejor postor. Ya podes consultar el detalle de la venta.', 'no'),
+ (4, 'PUJA_GANADA:31', 'Ganaste la lampara Tiffany y el pago ya fue confirmado.', 'si'),
+ (4, 'PUJA_GANADA:32', 'Ganaste el sable ceremonial, pero vencio el plazo de pago.', 'no'),
+ (4, 'MULTA:1', 'Se genero una multa por no pagar la adquisicion del sable ceremonial dentro del plazo.', 'no'),
  (6, 'ENVIO_INSPECCION:100', 'Recibimos el reloj para inspeccion y catalogacion.', 'no'),
  (8, 'PRODUCTO_ACEPTADO:104', 'La camara Leica fue aceptada para subasta.', 'no'),
  (9, 'CUENTA_COBRO_REQUERIDA:107', 'Recorda mantener activa tu cuenta de cobro para liquidaciones.', 'no');

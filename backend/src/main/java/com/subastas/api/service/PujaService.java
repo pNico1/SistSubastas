@@ -123,22 +123,26 @@ public class PujaService {
                     "La puja no puede superar " + lim.maxima());
         }
 
-        // Regla de garantia: si el cliente respalda sus compras con una garantia
-        // (ej. cheque certificado con montoGarantia), el total de sus adquisiciones
-        // mas esta puja no puede superar el monto garantizado. Si no tiene garantia
-        // (monto en null/0), no aplica tope.
-        BigDecimal garantia = medioPagoRepo.findByCliente(clienteId).stream()
-                .map(MedioPago::getMontoGarantia)
-                .filter(g -> g != null)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-        if (garantia.compareTo(BigDecimal.ZERO) > 0) {
-            BigDecimal comprometido = registroRepo.findByCliente(clienteId).stream()
-                    .map(RegistroDeSubasta::getImporte)
-                    .filter(i -> i != null)
-                    .reduce(BigDecimal.ZERO, BigDecimal::add);
-            if (comprometido.add(importe).compareTo(garantia) > 0) {
-                throw ApiException.conflict(ErrorCodes.GARANTIA_EXCEDIDA,
-                        "La puja supera tu monto de garantia disponible (" + garantia + ")");
+        // Regla de garantia: el tope por garantia SOLO aplica cuando el unico medio
+        // de pago verificado del cliente es un cheque. En ese caso, el total de sus
+        // adquisiciones mas esta puja no puede superar el monto garantizado por ese
+        // cheque. Si tiene otro medio verificado (con o sin el cheque), no hay tope.
+        List<MedioPago> verificados = medioPagoRepo.findByCliente(clienteId).stream()
+                .filter(m -> "verified".equals(m.getEstado()))
+                .toList();
+        boolean unicoMedioEsCheque = verificados.size() == 1
+                && "cheque".equals(verificados.get(0).getTipo());
+        if (unicoMedioEsCheque) {
+            BigDecimal garantia = verificados.get(0).getMontoGarantia();
+            if (garantia != null && garantia.compareTo(BigDecimal.ZERO) > 0) {
+                BigDecimal comprometido = registroRepo.findByCliente(clienteId).stream()
+                        .map(RegistroDeSubasta::getImporte)
+                        .filter(i -> i != null)
+                        .reduce(BigDecimal.ZERO, BigDecimal::add);
+                if (comprometido.add(importe).compareTo(garantia) > 0) {
+                    throw ApiException.conflict(ErrorCodes.GARANTIA_EXCEDIDA,
+                            "La puja supera tu monto de garantia disponible (" + garantia + ")");
+                }
             }
         }
 
