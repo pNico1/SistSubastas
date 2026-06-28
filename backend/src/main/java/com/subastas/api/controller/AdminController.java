@@ -115,12 +115,30 @@ public class AdminController {
         MedioPago medio = medioPagoRepo.findById(id)
                 .orElseThrow(() -> ApiException.notFound(ErrorCodes.PAYMENT_METHOD_NOT_FOUND, "Medio de pago no encontrado"));
         medio.setEstado("verified");
+        // La empresa consulta al banco el respaldo del medio. Se simula con un monto
+        // aleatorio dentro del rango fijo propio de cada tipo de medio de pago.
+        if (medio.getMontoGarantia() == null) {
+            medio.setMontoGarantia(garantiaBancaria(medio.getTipo()));
+        }
         medioPagoRepo.save(medio);
         return Map.of(
                 "id", medio.getId(),
                 "estado", medio.getEstado(),
+                "montoGarantia", medio.getMontoGarantia(),
                 "mensaje", "Medio de pago verificado"
         );
+    }
+
+    /** Simula la verificacion bancaria del respaldo: monto aleatorio por tipo de medio. */
+    private static BigDecimal garantiaBancaria(String tipo) {
+        long min, max;
+        switch (tipo == null ? "" : tipo) {
+            case "tarjeta" -> { min = 300_000; max = 1_500_000; }
+            case "cuenta_bancaria" -> { min = 200_000; max = 1_000_000; }
+            case "cheque" -> { min = 50_000; max = 500_000; }
+            default -> { min = 100_000; max = 500_000; }
+        }
+        return BigDecimal.valueOf(ThreadLocalRandom.current().nextLong(min, max + 1));
     }
 
     @PostMapping("/subastas")

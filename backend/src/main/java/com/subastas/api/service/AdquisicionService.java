@@ -112,6 +112,23 @@ public class AdquisicionService {
                     "Para pagar en USD la tarjeta debe ser internacional");
         }
 
+        // Si se paga con cheque, el total no puede exceder el respaldo restante del
+        // cheque: monto garantizado menos lo ya pagado con ese mismo cheque. Asi el
+        // limite de garantia se respeta tambien al pagar, no solo al pujar.
+        if ("cheque".equals(medio.getTipo()) && medio.getMontoGarantia() != null) {
+            BigDecimal usado = pagoRepo.findByMedioPago(medio.getId()).stream()
+                    .filter(pg -> pg.getAdquisicion() != null)
+                    .map(Pago::getImporteTotal)
+                    .filter(i -> i != null)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+            if (usado.add(total).compareTo(medio.getMontoGarantia()) > 0) {
+                BigDecimal disponible = medio.getMontoGarantia().subtract(usado).max(BigDecimal.ZERO);
+                throw ApiException.unprocessable(ErrorCodes.GARANTIA_EXCEDIDA,
+                        "El cheque no cubre el total de la compra (disponible " + disponible
+                                + "); usá otro medio de pago");
+            }
+        }
+
         Pago pago = new Pago();
         pago.setAdquisicion(id);
         pago.setMedioPago(medio.getId());

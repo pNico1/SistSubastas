@@ -55,7 +55,8 @@ public class MetodoPagoService {
         m.setTitular(trim(req.titular()));
         m.setMoneda(resolveMoneda(req.moneda()));
         m.setEsInternacional(Boolean.TRUE.equals(req.esInternacional()) ? "si" : "no");
-        m.setMontoGarantia(req.montoGarantia());
+        // El cliente NO fija su propia garantia: la empresa la determina al verificar
+        // el medio consultando al banco (ver AdminController.verificarMetodoPago).
         String numero = digits(req.numero());
         if (numero.length() >= 4) {
             m.setUltimos4(numero.substring(numero.length() - 4));

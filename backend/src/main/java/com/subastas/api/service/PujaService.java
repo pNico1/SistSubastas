@@ -29,7 +29,7 @@ public class PujaService {
     private final SubastaRepository subastaRepo;
     private final NotificacionRepository notificacionRepo;
     private final UsuarioRepository usuarioRepo;
-    private final RegistroDeSubastaRepository registroRepo;
+    private final PagoRepository pagoRepo;
     private final MultaRepository multaRepo;
 
     public PujaService(SubastaService subastaService, SubastaTiempoService tiempoService,
@@ -38,7 +38,7 @@ public class PujaService {
                        MedioPagoRepository medioPagoRepo, ItemCatalogoRepository itemRepo,
                        CatalogoRepository catalogoRepo, ProductoRepository productoRepo,
                        SubastaRepository subastaRepo, NotificacionRepository notificacionRepo,
-                       UsuarioRepository usuarioRepo, RegistroDeSubastaRepository registroRepo,
+                       UsuarioRepository usuarioRepo, PagoRepository pagoRepo,
                        MultaRepository multaRepo) {
         this.subastaService = subastaService;
         this.tiempoService = tiempoService;
@@ -52,7 +52,7 @@ public class PujaService {
         this.subastaRepo = subastaRepo;
         this.notificacionRepo = notificacionRepo;
         this.usuarioRepo = usuarioRepo;
-        this.registroRepo = registroRepo;
+        this.pagoRepo = pagoRepo;
         this.multaRepo = multaRepo;
     }
 
@@ -123,27 +123,20 @@ public class PujaService {
                     "La puja no puede superar " + lim.maxima());
         }
 
-        // Regla de garantia: el tope por garantia SOLO aplica cuando el unico medio
-        // de pago verificado del cliente es un cheque. En ese caso, el total de sus
-        // adquisiciones mas esta puja no puede superar el monto garantizado por ese
-        // cheque. Si tiene otro medio verificado (con o sin el cheque), no hay tope.
+        // Regla de garantia: la empresa fija un respaldo (montoGarantia) a CADA medio
+        // verificado al validarlo con el banco. La puja se respalda con UN medio: el de
+        // mayor disponible. Un cheque se consume SOLO con lo efectivamente pagado con ese
+        // mismo cheque; tarjeta/cuenta son limite renovable. No mutamos montoGarantia.
         List<MedioPago> verificados = medioPagoRepo.findByCliente(clienteId).stream()
                 .filter(m -> "verified".equals(m.getEstado()))
                 .toList();
-        boolean unicoMedioEsCheque = verificados.size() == 1
-                && "cheque".equals(verificados.get(0).getTipo());
-        if (unicoMedioEsCheque) {
-            BigDecimal garantia = verificados.get(0).getMontoGarantia();
-            if (garantia != null && garantia.compareTo(BigDecimal.ZERO) > 0) {
-                BigDecimal comprometido = registroRepo.findByCliente(clienteId).stream()
-                        .map(RegistroDeSubasta::getImporte)
-                        .filter(i -> i != null)
-                        .reduce(BigDecimal.ZERO, BigDecimal::add);
-                if (comprometido.add(importe).compareTo(garantia) > 0) {
-                    throw ApiException.conflict(ErrorCodes.GARANTIA_EXCEDIDA,
-                            "La puja supera tu monto de garantia disponible (" + garantia + ")");
-                }
-            }
+        BigDecimal limite = verificados.stream()
+                .map(this::disponibleGarantia)
+                .max(BigDecimal::compareTo)
+                .orElse(BigDecimal.ZERO);
+        if (importe.compareTo(limite) > 0) {
+            throw ApiException.conflict(ErrorCodes.GARANTIA_EXCEDIDA,
+                    "La puja supera tu garantia disponible (" + limite + ")");
         }
 
         Pujo pujo = new Pujo();
@@ -299,6 +292,27 @@ public class PujaService {
 
     private boolean matchesProducto(Integer itemId, Integer productoId) {
         return itemRepo.findById(itemId).map(i -> productoId.equals(i.getProducto())).orElse(false);
+    }
+
+    /**
+     * Disponible de garantia de un medio verificado para respaldar una puja.
+     * Cheque: monto del cheque menos lo efectivamente pagado con ESE mismo cheque
+     * (adquisiciones liquidadas en 'pagos'); se consume solo por su propio uso.
+     * Tarjeta/cuenta: el monto completo (limite renovable, no lo consumen compras pasadas).
+     */
+    private BigDecimal disponibleGarantia(MedioPago medio) {
+        BigDecimal monto = medio.getMontoGarantia();
+        if (monto == null) return BigDecimal.ZERO;
+        if (!"cheque".equals(medio.getTipo())) {
+            return monto;
+        }
+        BigDecimal usado = pagoRepo.findByMedioPago(medio.getId()).stream()
+                .filter(pg -> pg.getAdquisicion() != null)
+                .map(Pago::getImporteTotal)
+                .filter(i -> i != null)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal disponible = monto.subtract(usado);
+        return disponible.compareTo(BigDecimal.ZERO) > 0 ? disponible : BigDecimal.ZERO;
     }
 
     private boolean isAsistenciaActiva(Asistente asistente) {
